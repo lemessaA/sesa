@@ -70,6 +70,8 @@ deploy-test.sh
 # MongoDB and Database
 *.mongodb
 *.db
+.mongodb_data/
+backend/.mongodb_data/
 
 # Logs (May contain sensitive information)
 logs/
