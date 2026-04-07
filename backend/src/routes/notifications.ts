@@ -1,7 +1,8 @@
 import express from 'express';
 import type { Response } from 'express';
 import Notification from '../models/Notification.js';
-import { authenticate, type AuthRequest } from '../middleware/auth.js';
+import User, { UserRole } from '../models/User.js';
+import { authenticate, checkRole, type AuthRequest } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -136,6 +137,50 @@ router.delete('/', authenticate, async (req: AuthRequest, res: Response) => {
         res.json({
             message: 'Cleared read notifications',
             deletedCount: result.deletedCount,
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   POST /api/notifications/broadcast
+// @desc    Send notification to multiple users (Admin only)
+// @access  Private (Admin)
+router.post('/broadcast', authenticate, checkRole([UserRole.ADMIN, UserRole.SUPER_ADMIN]), async (req: AuthRequest, res: Response) => {
+    try {
+        const { title, message, targetRole, targetUserIds, link, type = 'announcement' } = req.body;
+
+        let userIds: string[] = [];
+
+        if (targetUserIds && Array.isArray(targetUserIds) && targetUserIds.length > 0) {
+            userIds = targetUserIds;
+        } else if (targetRole) {
+            const users = await User.find({ role: targetRole }).select('_id');
+            userIds = users.map(u => u._id.toString());
+        } else {
+            const users = await User.find().select('_id');
+            userIds = users.map(u => u._id.toString());
+        }
+
+        if (userIds.length === 0) {
+            return res.status(400).json({ message: 'No target users found' });
+        }
+
+        const notifications = userIds.map(userId => ({
+            userId,
+            title,
+            message,
+            type,
+            link,
+            isRead: false
+        }));
+
+        await Notification.insertMany(notifications);
+
+        res.json({
+            message: `Broadcasted to ${userIds.length} users successfully`,
+            targetCount: userIds.length
         });
     } catch (err) {
         console.error(err);

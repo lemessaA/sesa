@@ -5,6 +5,7 @@ export interface ICategory extends Document {
     description: string;
     icon: string;
     isActive: boolean;
+    createdBy?: mongoose.Types.ObjectId;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -14,6 +15,7 @@ const CategorySchema: Schema = new Schema({
     description: { type: String, trim: true },
     icon: { type: String, default: '📚' },
     isActive: { type: Boolean, default: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });

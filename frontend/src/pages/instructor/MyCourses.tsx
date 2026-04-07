@@ -131,7 +131,7 @@ const MyCourses: React.FC = () => {
                     </div>
                 </div>
                 <button
-                    onClick={() => navigate('/instructor/create-course')}
+                    onClick={() => navigate('/instructor/create')}
                     className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-xl font-semibold text-sm shadow-lg shadow-cyan-500/20 hover:from-cyan-500 hover:to-blue-500 transition-all"
                 >
                     <Plus className="w-4 h-4" />
@@ -166,7 +166,7 @@ const MyCourses: React.FC = () => {
                     <h2 className="text-xl font-bold text-slate-300 mb-2">No courses yet</h2>
                     <p className="text-slate-500 mb-6">Create your first course to get started.</p>
                     <button
-                        onClick={() => navigate('/instructor/create-course')}
+                        onClick={() => navigate('/instructor/create')}
                         className="flex items-center gap-2 px-5 py-2.5 bg-cyan-600 text-white rounded-xl font-semibold text-sm mx-auto hover:bg-cyan-500 transition-colors"
                     >
                         <Plus className="w-4 h-4" />

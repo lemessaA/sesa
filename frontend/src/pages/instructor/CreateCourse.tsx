@@ -25,8 +25,9 @@ const CreateCourse: React.FC = () => {
         level: 'beginner',
         gradeLevel: 'General',
         duration: '',
+        price: 0,
         tags: '',
-        lessons: [{ title: '', videoUrl: '', order: 1 }]
+        lessons: [{ title: '', videoUrl: '', order: 1, isFree: true }]
     });
 
 
@@ -47,9 +48,9 @@ const CreateCourse: React.FC = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleLessonChange = (index: number, field: 'title' | 'videoUrl', value: string) => {
+    const handleLessonChange = (index: number, field: 'title' | 'videoUrl' | 'isFree', value: string | boolean) => {
         const newLessons = [...formData.lessons];
-        newLessons[index][field] = value;
+        (newLessons[index] as any)[field] = value;
         setFormData({ ...formData, lessons: newLessons });
     };
 
@@ -58,7 +59,7 @@ const CreateCourse: React.FC = () => {
             ...formData,
             lessons: [
                 ...formData.lessons,
-                { title: '', videoUrl: '', order: formData.lessons.length + 1 }
+                { title: '', videoUrl: '', order: formData.lessons.length + 1, isFree: false }
             ]
         });
     };
@@ -269,6 +270,30 @@ const CreateCourse: React.FC = () => {
                                 </p>
                             </div>
 
+                            {/* Price */}
+                            <div>
+                                <label className="block text-sm font-bold text-dark-bg dark:text-white mb-2">
+                                    Course Price (USD) <span className="text-red-500">*</span>
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span>
+                                    <input
+                                        type="number"
+                                        name="price"
+                                        value={formData.price}
+                                        onChange={handleChange}
+                                        placeholder="0.00"
+                                        min="0"
+                                        step="0.01"
+                                        className="w-full pl-8 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-bg text-dark-bg dark:text-white focus:outline-none focus:border-primary transition-colors"
+                                        required
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    Set to 0.00 for a free course
+                                </p>
+                            </div>
+
                             {/* Structured Lessons Builder */}
                             <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
                                 <div className="flex items-center justify-between mb-4">
@@ -304,6 +329,18 @@ const CreateCourse: React.FC = () => {
                                                     className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-card text-dark-bg dark:text-white focus:outline-none focus:border-primary transition-colors"
                                                     required
                                                 />
+                                                <div className="mt-2 flex items-center gap-2">
+                                                    <input 
+                                                        type="checkbox"
+                                                        id={`free-${index}`}
+                                                        checked={lesson.isFree}
+                                                        onChange={(e) => handleLessonChange(index, 'isFree', e.target.checked)}
+                                                        className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                                    />
+                                                    <label htmlFor={`free-${index}`} className="text-xs font-semibold text-gray-600 dark:text-gray-400 cursor-pointer">
+                                                        Enable Free Preview for this lesson
+                                                    </label>
+                                                </div>
                                             </div>
                                             {formData.lessons.length > 1 && (
                                                 <button

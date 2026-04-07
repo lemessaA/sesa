@@ -2,8 +2,8 @@ import type { Response } from 'express';
 import type { AuthRequest } from '../middleware/auth.js';
 import Quiz from '../models/Quiz.js';
 import Course from '../models/Course.js';
-import Gamification from '../models/Gamification.js';
 import { UserRole } from '../models/User.js';
+import { GamificationService } from '../services/gamificationService.js';
 
 /**
  * @route   POST /api/quizzes
@@ -185,9 +185,16 @@ export const submitQuiz = async (req: AuthRequest, res: Response) => {
         quiz.attempts.push(attempt as any);
         await quiz.save();
 
-        // Award points for gamification
+        // Award points for gamification using Service
         if (percentage >= quiz.passingScore) {
-            await awardQuizPoints(userId, quizId, score, percentage === 100);
+            await GamificationService.awardPoints(userId, percentage === 100 ? 'quiz_perfect' : 'quiz_pass', {
+                sourceId: quizId,
+                reason: percentage === 100 ? `Perfect score on quiz: ${quiz.title}` : `Passed quiz: ${quiz.title}`,
+                points: Math.floor(score * 10) + (percentage === 100 ? 100 : 0)
+            });
+            
+            // Update streak
+            await GamificationService.updateStreak(userId);
         }
 
         res.json({
@@ -206,42 +213,6 @@ export const submitQuiz = async (req: AuthRequest, res: Response) => {
     }
 };
 
-/**
- * Helper function to award points for quiz completion
- */
-async function awardQuizPoints(userId: string, quizId: string, score: number, isPerfect: boolean) {
-    try {
-        let gamification = await Gamification.findOne({ userId });
-        
-        if (!gamification) {
-            gamification = new Gamification({ userId });
-        }
-
-        // Base points for passing
-        let points = Math.floor(score * 10);
-        
-        // Bonus for perfect score
-        if (isPerfect) {
-            points += 100;
-            gamification.achievements.perfectScores += 1;
-        }
-
-        gamification.totalPoints += points;
-        gamification.achievements.quizzesPassed += 1;
-        
-        gamification.pointsHistory.push({
-            points,
-            reason: isPerfect ? 'Perfect quiz score!' : 'Quiz passed',
-            source: 'quiz',
-            sourceId: quizId as any,
-            earnedAt: new Date()
-        });
-
-        await gamification.save();
-    } catch (error) {
-        console.error('Award quiz points error:', error);
-    }
-}
 
 /**
  * @route   GET /api/quizzes/:quizId/results

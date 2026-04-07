@@ -42,6 +42,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loadAuthState();
     }, []);
 
+    // Listen for 401 events from the API interceptor (session expired / revoked)
+    // This avoids a hard page reload — state clears and React Router handles redirect.
+    useEffect(() => {
+        const handleUnauthorized = () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            setAuthState({ user: null, token: null });
+        };
+        window.addEventListener('sesa:unauthorized', handleUnauthorized);
+        return () => window.removeEventListener('sesa:unauthorized', handleUnauthorized);
+    }, []);
+
     const login = (token: string, user: User) => {
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));

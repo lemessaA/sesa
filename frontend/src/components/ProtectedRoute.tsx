@@ -8,9 +8,10 @@ interface ProtectedRouteProps {
     children: React.ReactNode;
     allowedRoles?: UserRole[];
     wrapLayout?: boolean;
+    requireGuest?: boolean;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles, wrapLayout }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles, wrapLayout, requireGuest }) => {
     const { user, isAuthenticated, isLoading } = useAuth();
 
     // Show loading spinner while checking auth
@@ -25,8 +26,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles,
         );
     }
 
-    // Redirect to home if not authenticated
-    if (!isAuthenticated) {
+    // Redirect to dashboard if authenticated and this is a guest-only route (like Login)
+    if (requireGuest && isAuthenticated) {
+        return <Navigate to="/dashboard" replace />;
+    }
+
+    // Redirect to home if not authenticated and this is a protected route
+    if (!requireGuest && !isAuthenticated) {
         return <Navigate to="/" replace />;
     }
 

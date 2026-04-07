@@ -233,19 +233,7 @@ router.post(
 // @access  Public/Private
 router.get('/', optionalAuthenticate, async (req: AuthRequest, res: Response) => {
     try {
-        if (req.user?.role === UserRole.STUDENT) {
-            const studentCourses = await Course.find({
-                status: 'approved',
-                isPublished: true,
-                enrolledStudents: req.user.id,
-            })
-                .populate('instructor', 'name')
-                .populate('category', 'name icon')
-                .sort({ createdAt: -1 });
-
-            return res.json(studentCourses);
-        }
-
+        // If admin/instructor, see everything
         if (
             req.user?.role === UserRole.ADMIN ||
             req.user?.role === UserRole.SUPER_ADMIN ||
@@ -259,15 +247,24 @@ router.get('/', optionalAuthenticate, async (req: AuthRequest, res: Response) =>
             return res.json(staffCourses);
         }
 
-        const publicCourses = await Course.find({ status: 'approved', isPublished: true })
+        // Everyone else (Student or Public) sees all published courses
+        const courses = await Course.find({ status: 'approved', isPublished: true })
             .populate('instructor', 'name')
             .populate('category', 'name icon')
-            .select('-students -enrolledStudents -pendingApprovals -lessons')
             .sort({ createdAt: -1 });
 
-        const sanitized = publicCourses.map((course) => {
+        const sanitized = courses.map((course) => {
             const data = course.toObject();
-            delete (data as any).resourceUrl;
+            const studentId = req.user?.id;
+            const isEnrolled = studentId && course.enrolledStudents.some((id) => id.toString() === studentId);
+            
+            // If not enrolled and not a privileged user, hide lessons and sensitive URLs
+            if (!isEnrolled) {
+                delete (data as any).lessons;
+                delete (data as any).resourceUrl;
+                delete (data as any).pendingApprovals;
+                delete (data as any).students;
+            }
             return data;
         });
 
@@ -710,16 +707,46 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
 // @route   GET api/courses/:courseId/content
 // @desc    Get protected course content (videos, links, etc.)
-// @access  Private (Approved Students/Admins/Instructors)
-router.get('/:courseId/content', authenticate, verifyAccess, async (req: AuthRequest, res: Response) => {
+// @access  Private (Partial for Free Previews, Full for Approved Students/Admins/Instructors)
+router.get('/:courseId/content', authenticate, async (req: AuthRequest, res: Response) => {
     try {
-        const course = await Course.findById(req.params.courseId).select('title lockedContent lessons');
+        const course = await Course.findById(req.params.courseId).select('title lockedContent lessons instructor enrolledStudents');
         if (!course) return res.status(404).json({ message: 'Course not found' });
+
+        const userId = req.user!.id;
+        const isAdmin = req.user!.role === UserRole.ADMIN || req.user!.role === UserRole.SUPER_ADMIN;
+        const isInstructor = course.instructor.toString() === userId;
+        const isEnrolled = course.enrolledStudents.some((id) => id.toString() === userId);
+
+        if (isAdmin || isInstructor || isEnrolled) {
+            return res.json({
+                title: course.title,
+                lockedContent: course.lockedContent,
+                lessons: course.lessons
+            });
+        }
+
+        // If not enrolled/admin, only show free lessons
+        const freeLessons = course.lessons.map(lesson => {
+            if (lesson.isFree) return lesson;
+            
+            // Mask non-free lessons
+            const lessonData = (lesson as any).toObject ? (lesson as any).toObject() : { ...lesson };
+            delete lessonData.videoUrl;
+            delete lessonData.resources;
+            return {
+                ...lessonData,
+                isLocked: true,
+                message: 'Enrollment required to unlock this lesson'
+            };
+        });
 
         res.json({
             title: course.title,
-            lockedContent: course.lockedContent,
-            lessons: course.lessons
+            lockedContent: [], 
+            lessons: freeLessons,
+            isPartial: true,
+            enrollmentRequired: true
         });
     } catch (err) {
         console.error(err);

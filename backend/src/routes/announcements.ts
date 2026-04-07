@@ -15,21 +15,44 @@ const validate = (req: Request, res: Response, next: NextFunction) => {
     next();
 };
 
-router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
+router.get('/', async (req: AuthRequest, res: Response) => {
     try {
-        const userRole = req.user!.role;
+        // Try to get user role if authenticated (optional auth)
+        let userRole: string | null = null;
+        const authHeader = req.headers.authorization;
+        if (authHeader?.startsWith('Bearer ')) {
+            try {
+                const jwt = await import('jsonwebtoken');
+                const payload: any = jwt.default.verify(
+                    authHeader.split(' ')[1],
+                    process.env.JWT_SECRET!
+                );
+                userRole = payload?.user?.role || null;
+            } catch {
+                // Invalid token — treat as unauthenticated
+            }
+        }
+
         const scope = req.query.scope;
-        const canViewAll = userRole === UserRole.ADMIN || userRole === UserRole.SUPER_ADMIN || userRole === UserRole.MODERATOR;
+        const isAdmin = userRole === UserRole.ADMIN || userRole === UserRole.SUPER_ADMIN || userRole === UserRole.MODERATOR;
 
         const query: Record<string, unknown> = {};
-        if (!(canViewAll && scope === 'all')) {
+        
+        // Admins fetching with ?scope=all can see inactive announcements too
+        if (!(isAdmin && scope === 'all')) {
             query.isActive = true;
         }
 
-        if (userRole === UserRole.STUDENT || userRole === UserRole.PREMIUM_STUDENT) {
+        // Role-based filtering: students see 'student' or 'both', instructors see 'instructor' or 'both',
+        // admins/unauthenticated users see everything active
+        if (userRole === UserRole.STUDENT || userRole === 'premium_student') {
             query.targetRole = { $in: ['student', 'both'] };
-        } else if (userRole === UserRole.INSTRUCTOR || userRole === UserRole.ASSISTANT_INSTRUCTOR) {
+        } else if (userRole === UserRole.INSTRUCTOR || userRole === 'assistant_instructor') {
             query.targetRole = { $in: ['instructor', 'both'] };
+        }
+        // No targetRole filter for admins/mods (see all) or unauthenticated (see 'both' only)
+        if (!userRole) {
+            query.targetRole = 'both';
         }
 
         const announcements = await Announcement.find(query)

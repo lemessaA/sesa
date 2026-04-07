@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { showSuccess, showError } from '../../utils/toast';
 import axios from 'axios';
-import { ArrowLeft, Settings as SettingsIcon, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Settings as SettingsIcon, Plus, Trash2, Megaphone, Send, Users } from 'lucide-react';
 
 interface Category {
     _id: string;
@@ -21,8 +21,66 @@ const Settings: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     const [newCategory, setNewCategory] = useState({ name: '', description: '', icon: '' });
+    
+    // Broadcast state
+    const [broadcast, setBroadcast] = useState({
+        title: '',
+        message: '',
+        targetRole: 'all',
+        link: '',
+        type: 'announcement'
+    });
+    const [sendingBroadcast, setSendingBroadcast] = useState(false);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+    const handleBroadcast = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!broadcast.title.trim() || !broadcast.message.trim()) {
+            showError('Title and message are required');
+            return;
+        }
+        setSendingBroadcast(true);
+        try {
+            const headers = { Authorization: `Bearer ${token}` };
+
+            // 1. Send in-app notifications to targeted users via the notifications broadcast endpoint
+            const notifPayload: Record<string, any> = {
+                title: broadcast.title.trim(),
+                message: broadcast.message.trim(),
+                type: broadcast.type === 'important' ? 'system' : broadcast.type,
+                link: broadcast.link.trim() || undefined,
+            };
+            // Map frontend targetRole value → backend expects null (all), 'student', or 'instructor'
+            if (broadcast.targetRole !== 'all') {
+                notifPayload.targetRole = broadcast.targetRole;
+            }
+            await axios.post(`${API_URL}/notifications/broadcast`, notifPayload, { headers });
+
+            // 2. Also create an announcement banner entry so it appears in the scrolling banner
+            //    targetRole for announcements must be 'student' | 'instructor' | 'both'
+            const announcementTargetRole =
+                broadcast.targetRole === 'all' ? 'both' :
+                broadcast.targetRole === 'student' ? 'student' : 'instructor';
+            await axios.post(
+                `${API_URL}/announcements`,
+                {
+                    message: `${broadcast.title}: ${broadcast.message}`,
+                    targetRole: announcementTargetRole,
+                    isActive: true,
+                },
+                { headers }
+            );
+
+            showSuccess(`Broadcast sent successfully to ${broadcast.targetRole === 'all' ? 'all users' : broadcast.targetRole + 's'}!`);
+            // Reset form
+            setBroadcast({ title: '', message: '', targetRole: 'all', link: '', type: 'announcement' });
+        } catch (err: any) {
+            showError(err.response?.data?.message || 'Failed to send broadcast. Please try again.');
+        } finally {
+            setSendingBroadcast(false);
+        }
+    };
 
     useEffect(() => {
         fetchCategories();
@@ -112,43 +170,130 @@ const Settings: React.FC = () => {
                         </button>
                     </div>
 
-                    {/* Categories Section */}
-                    <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-100 dark:border-gray-800 p-6">
-                        <h2 className="text-lg font-bold text-dark-bg dark:text-white mb-4">Course Categories</h2>
-                        
-                        {loading ? (
-                            <div className="text-center py-8 text-gray-500">Loading categories...</div>
-                        ) : categories.length === 0 ? (
-                            <div className="text-center py-8 text-gray-500">No categories found</div>
-                        ) : (
-                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {categories.map((category) => (
-                                    <div
-                                        key={category._id}
-                                        className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-primary transition-colors"
-                                    >
-                                        <div className="flex items-start justify-between mb-2">
-                                            <div className="flex items-center gap-2">
+                    {/* Broadcast Section */}
+                    <div className="mt-8 grid lg:grid-cols-2 gap-8">
+                        {/* Categories List */}
+                        <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-100 dark:border-gray-800 p-6">
+                            <h2 className="text-lg font-bold text-dark-bg dark:text-white mb-4">Course Categories</h2>
+                            
+                            {loading ? (
+                                <div className="text-center py-8 text-gray-500">Loading categories...</div>
+                            ) : categories.length === 0 ? (
+                                <div className="text-center py-8 text-gray-500">No categories found</div>
+                            ) : (
+                                <div className="grid gap-4">
+                                    {categories.map((category) => (
+                                        <div
+                                            key={category._id}
+                                            className="p-4 border border-gray-100 dark:border-gray-800 rounded-xl hover:border-primary transition-colors flex items-center justify-between"
+                                        >
+                                            <div className="flex items-center gap-3">
                                                 <span className="text-2xl">{category.icon}</span>
-                                                <h3 className="font-bold text-dark-bg dark:text-white">{category.name}</h3>
+                                                <div>
+                                                    <h3 className="font-bold text-sm text-dark-bg dark:text-white">{category.name}</h3>
+                                                    <p className="text-[10px] text-gray-500 line-clamp-1">{category.description}</p>
+                                                </div>
                                             </div>
                                             <button
                                                 onClick={() => handleDeleteCategory(category._id, category.name)}
-                                                className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">{category.description}</p>
-                                        <div className="mt-3">
-                                            <span className={`inline-block px-2 py-1 text-xs font-bold rounded ${category.isActive ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-600'}`}>
-                                                {category.isActive ? 'Active' : 'Inactive'}
-                                            </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Broadcast Form */}
+                        <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-100 dark:border-gray-800 p-6">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                                    <Megaphone className="w-5 h-5 text-purple-600" />
+                                </div>
+                                <h2 className="text-lg font-bold text-dark-bg dark:text-white">Broadcast Announcement</h2>
+                            </div>
+
+                            <form onSubmit={handleBroadcast} className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Target Audience</label>
+                                        <div className="relative">
+                                            <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                            <select 
+                                                value={broadcast.targetRole}
+                                                onChange={(e) => setBroadcast({ ...broadcast, targetRole: e.target.value })}
+                                                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-dark-bg text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all"
+                                            >
+                                                <option value="all">Everyone</option>
+                                                <option value="student">All Students</option>
+                                                <option value="instructor">All Instructors</option>
+                                            </select>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        )}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Notice Type</label>
+                                        <select 
+                                            value={broadcast.type}
+                                            onChange={(e) => setBroadcast({ ...broadcast, type: e.target.value as any })}
+                                            className="w-full px-4 py-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-dark-bg text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all"
+                                        >
+                                            <option value="announcement">Announcement</option>
+                                            <option value="system">System Update</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Subject / Title</label>
+                                    <input 
+                                        required
+                                        value={broadcast.title}
+                                        onChange={(e) => setBroadcast({ ...broadcast, title: e.target.value })}
+                                        placeholder="e.g. New Platform Features!"
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-dark-bg text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Message Content</label>
+                                    <textarea 
+                                        required
+                                        rows={4}
+                                        value={broadcast.message}
+                                        onChange={(e) => setBroadcast({ ...broadcast, message: e.target.value })}
+                                        placeholder="Type your message here..."
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-dark-bg text-sm font-medium focus:ring-2 focus:ring-primary outline-none transition-all resize-none"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Action Link (Optional)</label>
+                                    <input 
+                                        value={broadcast.link}
+                                        onChange={(e) => setBroadcast({ ...broadcast, link: e.target.value })}
+                                        placeholder="e.g. /marketplace"
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-dark-bg text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all"
+                                    />
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={sendingBroadcast}
+                                    className="w-full py-4 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-black hover:shadow-xl hover:shadow-purple-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                                >
+                                    {sendingBroadcast ? (
+                                        <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <>
+                                            <Send className="w-4 h-4" />
+                                            Send Broadcast
+                                        </>
+                                    )}
+                                </button>
+                            </form>
+                        </div>
                     </div>
 
                     {/* Platform Info */}

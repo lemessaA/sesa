@@ -37,38 +37,43 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Handle common errors
     if (error.response) {
+      const requestUrl: string = error.config?.url || '';
+      // List of auth endpoints that should NOT trigger a forced redirect on 401
+      // (the login/register forms handle their own errors)
+      const authEndpoints = ['/auth/login', '/auth/register', '/auth/refresh'];
+      const isAuthEndpoint = authEndpoints.some((ep) => requestUrl.includes(ep));
+
       switch (error.response.status) {
         case 401:
-          // Unauthorized - clear local storage and redirect to login
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          window.location.href = '/auth';
+          // Only redirect to login page if this is NOT an auth endpoint call.
+          // If the user typed wrong credentials, we must NOT reload the page —
+          // the Login component catches the error and shows a message instead.
+          if (!isAuthEndpoint) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            // Use history API to avoid a hard full-page reload
+            window.dispatchEvent(new CustomEvent('sesa:unauthorized'));
+          }
           break;
         case 403:
-          // Forbidden - show access denied message
-          console.error('Access denied:', error.response.data.message);
+          console.error('Access denied:', error.response?.data?.message);
           break;
         case 404:
-          // Not found
-          console.error('Resource not found:', error.response.data.message);
+          console.error('Resource not found:', error.response?.data?.message);
           break;
         case 500:
-          // Server error
-          console.error('Server error:', error.response.data.message);
+          console.error('Server error:', error.response?.data?.message);
           break;
         default:
-          console.error('API error:', error.response.data.message);
+          console.error('API error:', error.response?.data?.message);
       }
     } else if (error.request) {
-      // Network error
       console.error('Network error:', error.message);
     } else {
-      // Other errors
       console.error('Error:', error.message);
     }
-    
+
     return Promise.reject(error);
   }
 );

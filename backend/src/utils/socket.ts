@@ -1,5 +1,6 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Server as HttpServer } from 'http';
+import logger from './logger.js';
 
 let io: SocketIOServer;
 
@@ -12,18 +13,18 @@ export const initSocket = (httpServer: HttpServer) => {
     });
 
     io.on('connection', (socket: Socket) => {
-        console.log('A user connected:', socket.id);
+        logger.debug(`[Socket] User connected: ${socket.id}`);
 
         // Join a room based on userId for targeted notifications
         socket.on('join', (userId: string) => {
             if (userId) {
                 socket.join(userId);
-                console.log(`User ${userId} joined their notification room`);
+                logger.debug(`[Socket] User ${userId} joined notification room`);
             }
         });
 
         socket.on('disconnect', () => {
-            console.log('User disconnected:', socket.id);
+            logger.debug(`[Socket] User disconnected: ${socket.id}`);
         });
     });
 

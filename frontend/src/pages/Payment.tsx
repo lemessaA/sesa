@@ -49,42 +49,51 @@ const Payment: React.FC = () => {
         e.preventDefault();
         setLoading(true);
 
-        const payload: any = { 
-            watchedPart1: true,
-            paymentMethod: provider,
-            transactionId: transactionId
-        };
-
-        if ((provider === 'bank_transfer' || provider === 'telebirr' || provider === 'cbe_birr') && file) {
-            const reader = new FileReader();
-            const base64Promise = new Promise<string>((resolve, reject) => {
-                reader.onload = () => {
-                    const result = reader.result as string;
-                    const base64 = result.split(',')[1] || result;
-                    resolve(base64);
-                };
-                reader.onerror = reject;
-            });
-            reader.readAsDataURL(file);
-            try {
-                payload.paymentProofUrl = await base64Promise;
-            } catch (err) {
-                showError('Failed to read screenshot file');
-                setLoading(false);
-                return;
-            }
-        }
-
         try {
-            await axios.post(
-                `${API_URL}/enrollments/request/${courseId}`,
-                payload,
+            // 1. Create Payment record
+            const createRes = await axios.post(
+                `${API_URL}/payments/create`,
+                {
+                    courseId,
+                    paymentMethod: provider,
+                    amount: course.price
+                },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-            showSuccess('Request submitted! Enrollment pending admin verification.');
+
+            const { payment } = createRes.data;
+
+            // 2. If it's a manual payment, upload proof
+            if (provider !== 'chapa' && provider !== 'stripe' && file) {
+                const formData = new FormData();
+                formData.append('proof', file);
+                
+                await axios.post(
+                    `${API_URL}/payments/${payment._id}/upload-proof`,
+                    formData,
+                    { 
+                        headers: { 
+                            Authorization: `Bearer ${token}`,
+                            'Content-Type': 'multipart/form-data'
+                        } 
+                    }
+                );
+            }
+
+            // 3. Create Enrollment Request (to signify pending state in the UI)
+            await axios.post(
+                `${API_URL}/enrollments/request/${courseId}`,
+                { 
+                    paymentMethod: provider,
+                    transactionId: transactionId
+                },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            showSuccess('Payment details submitted! Enrollment pending admin verification.');
             setStep('success');
         } catch (error: any) {
-            showError(error?.response?.data?.message || 'Failed to submit enrollment request');
+            showError(error?.response?.data?.message || 'Failed to submit payment details');
         } finally {
             setLoading(false);
         }
@@ -228,6 +237,21 @@ const Payment: React.FC = () => {
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
+                                        <div className="p-5 bg-slate-900 border border-slate-700 rounded-2xl space-y-3">
+                                            <h4 className="text-xs font-black text-primary uppercase tracking-widest">{t('Bank Details', 'የባንክ ዝርዝሮች')}</h4>
+                                            <div className="grid grid-cols-2 gap-2 text-sm">
+                                                <div className="text-slate-400">Account Name:</div>
+                                                <div className="text-white font-bold">SESA Academy</div>
+                                                <div className="text-slate-400">CBE Account:</div>
+                                                <div className="text-white font-bold">1000123456789</div>
+                                                <div className="text-slate-400">Telebirr:</div>
+                                                <div className="text-white font-bold">0912345678</div>
+                                            </div>
+                                            <p className="text-[10px] text-slate-500 italic mt-2">
+                                                * {t('Please include your Username as reference.', 'እባክዎን የተጠቃሚ ስምዎን እንደ ማጣቀሻ ይጠቀሙ።')}
+                                            </p>
+                                        </div>
+
                                         <div className="space-y-2">
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">{t('Transaction ID / Ref', 'የግብይት መለያ')}</label>
                                             <input 

@@ -2,8 +2,8 @@ import type { Response } from 'express';
 import type { AuthRequest } from '../middleware/auth.js';
 import Assignment from '../models/Assignment.js';
 import Course from '../models/Course.js';
-import Gamification from '../models/Gamification.js';
 import { UserRole } from '../models/User.js';
+import { GamificationService } from '../services/gamificationService.js';
 
 /**
  * @route   POST /api/assignments
@@ -190,8 +190,15 @@ export const submitAssignment = async (req: AuthRequest, res: Response) => {
 
         await assignment.save();
 
-        // Award points for submission
-        await awardSubmissionPoints(userId, assignmentId);
+        // Award points for submission using Service
+        await GamificationService.awardPoints(userId, 'bonus', {
+            points: 50,
+            reason: `Submitted assignment: ${assignment.title}`,
+            sourceId: assignmentId
+        });
+
+        // Update streak
+        await GamificationService.updateStreak(userId);
 
         res.json({
             message: 'Assignment submitted successfully',
@@ -344,8 +351,13 @@ export const gradeSubmission = async (req: AuthRequest, res: Response) => {
 
         await assignment.save();
 
-        // Award points for graded assignment
-        await awardAssignmentPoints(studentId, assignmentId, submission.grade, assignment.maxPoints);
+        // Award points for graded assignment using Service
+        const percentage = (finalGrade / assignment.maxPoints) * 100;
+        await GamificationService.awardPoints(studentId, 'bonus', {
+            points: Math.floor(percentage * 5),
+            reason: `Assignment graded: ${assignment.title} (${percentage.toFixed(1)}%)`,
+            sourceId: assignmentId
+        });
 
         res.json({
             message: 'Assignment graded successfully',
@@ -358,65 +370,6 @@ export const gradeSubmission = async (req: AuthRequest, res: Response) => {
     }
 };
 
-/**
- * Helper function to award points for assignment submission
- */
-async function awardSubmissionPoints(userId: string, assignmentId: string) {
-    try {
-        let gamification = await Gamification.findOne({ userId });
-        
-        if (!gamification) {
-            gamification = new Gamification({ userId });
-        }
-
-        const points = 50; // Base points for submission
-        gamification.totalPoints += points;
-        gamification.achievements.assignmentsSubmitted += 1;
-        
-        gamification.pointsHistory.push({
-            points,
-            reason: 'Assignment submitted',
-            source: 'assignment',
-            sourceId: assignmentId as any,
-            earnedAt: new Date()
-        });
-
-        await gamification.save();
-    } catch (error) {
-        console.error('Award submission points error:', error);
-    }
-}
-
-/**
- * Helper function to award points for graded assignment
- */
-async function awardAssignmentPoints(userId: string, assignmentId: string, grade: number, maxPoints: number) {
-    try {
-        let gamification = await Gamification.findOne({ userId });
-        
-        if (!gamification) {
-            gamification = new Gamification({ userId });
-        }
-
-        // Award points based on grade percentage
-        const percentage = (grade / maxPoints) * 100;
-        const points = Math.floor(percentage * 5); // Up to 500 points for perfect score
-
-        gamification.totalPoints += points;
-        
-        gamification.pointsHistory.push({
-            points,
-            reason: `Assignment graded: ${percentage.toFixed(1)}%`,
-            source: 'assignment',
-            sourceId: assignmentId as any,
-            earnedAt: new Date()
-        });
-
-        await gamification.save();
-    } catch (error) {
-        console.error('Award assignment points error:', error);
-    }
-}
 
 /**
  * @route   PUT /api/assignments/:assignmentId

@@ -11,6 +11,7 @@ export interface ILesson {
         url: string;
         type: 'pdf' | 'link' | 'code' | 'doc';
     }[];
+    isFree?: boolean;
 }
 
 export interface ICourse extends Document {
@@ -72,7 +73,8 @@ const LessonSchema = new Schema({
         title: { type: String, required: true },
         url: { type: String, required: true },
         type: { type: String, enum: ['pdf', 'link', 'code', 'doc'], default: 'link' }
-    }]
+    }],
+    isFree: { type: Boolean, default: false }
 });
 
 const CourseSchema: Schema = new Schema({

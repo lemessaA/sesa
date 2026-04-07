@@ -19,7 +19,7 @@ const AnnouncementBanner: React.FC = () => {
 
 
     useEffect(() => {
-        if (!token || !isAuthenticated) {
+        if (!token) {
             setAnnouncements([]);
             return;
         }
@@ -34,7 +34,7 @@ const AnnouncementBanner: React.FC = () => {
                     setAnnouncements(Array.isArray(response.data) ? response.data : []);
                 }
             } catch (error) {
-                console.error('Failed to fetch announcements', error);
+                // Silently fail — banner is non-critical
                 if (isMounted) {
                     setAnnouncements([]);
                 }
@@ -42,13 +42,14 @@ const AnnouncementBanner: React.FC = () => {
         };
 
         fetchAnnouncements();
-        const interval = window.setInterval(fetchAnnouncements, 30_000);
+        // Poll every 15s so broadcast announcements appear quickly after admin sends them
+        const interval = window.setInterval(fetchAnnouncements, 15_000);
 
         return () => {
             isMounted = false;
             window.clearInterval(interval);
         };
-    }, [token, isAuthenticated]);
+    }, [token]);
 
     const marqueeText = useMemo(() => {
         if (announcements.length === 0) return '';

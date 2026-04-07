@@ -14,7 +14,8 @@ import {
     GraduationCap,
     BarChart,
     PlusCircle,
-    Folders
+    Folders,
+    Trophy
 } from 'lucide-react';
 import { UserRole } from '../types';
 
@@ -36,6 +37,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen }) => {
     const studentLinks = [
         { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         { name: 'Browse Library', path: '/student/browse', icon: BookOpen },
+        { name: 'Leaderboard', path: '/student/leaderboard', icon: Trophy },
         { name: 'Certificates', path: '/student/certificates', icon: Award },
         { name: 'Resources', path: '/student/resources', icon: FileText },
     ];
@@ -43,7 +45,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen }) => {
     const instructorLinks = [
         { name: 'Overview', path: '/dashboard', icon: LayoutDashboard },
         { name: 'My Students', path: '/instructor/students', icon: Users },
-        { name: 'Create Course', path: '/instructor/create-course', icon: PlusCircle },
+        { name: 'Create Course', path: '/instructor/create', icon: PlusCircle },
         { name: 'Analytics', path: '/instructor/analytics', icon: BarChart },
     ];
 

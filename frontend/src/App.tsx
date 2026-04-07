@@ -32,6 +32,7 @@ import Categories from "./pages/admin/Categories";
 import Settings from "./pages/admin/Settings";
 import CoursePreview from "./pages/admin/CoursePreview";
 import MyCourses from "./pages/instructor/MyCourses";
+import Leaderboard from "./pages/student/Leaderboard";
 import NotFound from "./pages/NotFound";
 import { UserRole } from "./types";
 import "./index.css";
@@ -52,7 +53,14 @@ const AppRoutes: React.FC = () => {
                     <Route path="/" element={<Landing />} />
 
                     {/* Unified Auth */}
-                    <Route path="/auth" element={<Login />} />
+                    <Route 
+                        path="/auth" 
+                        element={
+                            <ProtectedRoute requireGuest>
+                                <Login />
+                            </ProtectedRoute>
+                        } 
+                    />
                     <Route path="/login" element={<Navigate to="/auth" replace />} />
                     <Route path="/login/student" element={<Navigate to="/auth?role=student" replace />} />
                     <Route path="/login/instructor" element={<Navigate to="/auth?role=instructor" replace />} />
@@ -105,10 +113,26 @@ const AppRoutes: React.FC = () => {
                             </ProtectedRoute>
                         }
                     />
+                    <Route
+                        path="/student/leaderboard"
+                        element={
+                            <ProtectedRoute allowedRoles={[UserRole.STUDENT, UserRole.INSTRUCTOR, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.MODERATOR]} wrapLayout>
+                                <Leaderboard />
+                            </ProtectedRoute>
+                        }
+                    />
 
                     {/* Instructor Routes */}
                     <Route
                         path="/instructor/create"
+                        element={
+                            <ProtectedRoute allowedRoles={[UserRole.INSTRUCTOR, UserRole.ADMIN]} wrapLayout>
+                                <CreateCourse />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/instructor/create-course"
                         element={
                             <ProtectedRoute allowedRoles={[UserRole.INSTRUCTOR, UserRole.ADMIN]} wrapLayout>
                                 <CreateCourse />

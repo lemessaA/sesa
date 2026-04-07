@@ -339,6 +339,8 @@ async function seedDatabase() {
             {
                 user: premiumStudent!._id,
                 course: courses[0]._id,
+                userId: premiumStudent!._id,
+                courseId: courses[0]._id,
                 watchCount: 5,
                 totalMinutesWatched: 120,
                 completed: false
@@ -346,6 +348,8 @@ async function seedDatabase() {
             {
                 user: premiumStudent!._id,
                 course: courses[1]._id,
+                userId: premiumStudent!._id,
+                courseId: courses[1]._id,
                 watchCount: 10,
                 totalMinutesWatched: 300,
                 completed: true

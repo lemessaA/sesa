@@ -6,6 +6,23 @@ import { Mail, Lock, Loader, ArrowRight, User, Eye, EyeOff, Shield, BookOpen } f
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import apiService from '../../utils/api';
 
+// Maps a returned role to the correct dashboard path
+const getRolePath = (role: UserRole): string => {
+    switch (role) {
+        case UserRole.ADMIN:
+        case UserRole.SUPER_ADMIN:
+        case UserRole.MODERATOR:
+            return '/dashboard'; // Admin dashboard
+        case UserRole.INSTRUCTOR:
+        case UserRole.ASSISTANT_INSTRUCTOR:
+            return '/dashboard'; // Instructor dashboard
+        case UserRole.STUDENT:
+        case UserRole.PREMIUM_STUDENT:
+        default:
+            return '/dashboard'; // Student dashboard
+    }
+};
+
 interface LoginProps {
     role?: UserRole;
     title?: string;
@@ -86,12 +103,19 @@ const Login: React.FC<LoginProps> = ({ role, title }) => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-    const { login } = useAuth();
+    const { login, isAuthenticated } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
         setSelectedRole(roleFromQuery ?? fallbackRole);
     }, [roleFromQuery, fallbackRole]);
+
+    // Safety net: if user is already authenticated (e.g. page refresh), redirect them away from login
+    useEffect(() => {
+        if (isAuthenticated) {
+            navigate('/dashboard', { replace: true });
+        }
+    }, [isAuthenticated, navigate]);
 
     const config = useMemo(() => roleConfig[selectedRole], [selectedRole]);
     const computedTitle = useMemo(
@@ -139,14 +163,15 @@ const Login: React.FC<LoginProps> = ({ role, title }) => {
                 }
 
                 login(response.data.token, response.data.user);
-                setSuccess('Account created. Redirecting to dashboard...');
-                setTimeout(() => navigate('/dashboard'), 700);
+                const regPath = getRolePath(response.data.user.role as UserRole);
+                navigate(regPath, { replace: true });
                 return;
             }
 
             const response = await apiService.auth.login(email.trim(), password);
 
             const returnedRole = response.data?.user?.role as UserRole;
+            
             const isMatch = returnedRole === selectedRole;
             const isStudentGroup = (selectedRole === UserRole.STUDENT && (returnedRole === UserRole.STUDENT || returnedRole === UserRole.PREMIUM_STUDENT));
             const isInstructorGroup = (selectedRole === UserRole.INSTRUCTOR && (returnedRole === UserRole.INSTRUCTOR || returnedRole === UserRole.ASSISTANT_INSTRUCTOR));
@@ -159,13 +184,17 @@ const Login: React.FC<LoginProps> = ({ role, title }) => {
                 return;
             }
 
+            // Save auth state FIRST, then navigate immediately
             login(response.data.token, response.data.user);
-            navigate('/dashboard');
+            const dashPath = getRolePath(returnedRole);
+            navigate(dashPath, { replace: true });
         } catch (err: any) {
+            console.error('[Login] Error:', err);
             const msg =
                 err.response?.data?.message ||
                 err.response?.data?.errors?.[0]?.msg ||
                 'Something went wrong. Please try again.';
+            console.error('[Login] Error message:', msg);
             setError(msg);
         } finally {
             setIsLoading(false);

@@ -4,6 +4,9 @@ import Payment from '../models/Payment.js';
 import Course from '../models/Course.js';
 import Enrollment from '../models/Enrollment.js';
 import mongoose from 'mongoose';
+import { createNotification } from '../models/Notification.js';
+import { notifyUser } from '../utils/socket.js';
+import { GamificationService } from '../services/gamificationService.js';
 
 // Create payment intent
 export const createPayment = async (req: AuthRequest, res: Response) => {
@@ -197,6 +200,134 @@ export const refundPayment = async (req: AuthRequest, res: Response) => {
         res.json({ message: 'Payment refunded successfully', payment });
     } catch (error) {
         console.error('Refund payment error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// @route   POST api/payments/:paymentId/upload-proof
+// @desc    Upload screenshot of payment (Student)
+export const uploadProof = async (req: AuthRequest, res: Response) => {
+    try {
+        const { paymentId } = req.params;
+        const userId = req.user!.id;
+
+        if (!req.file) {
+            return res.status(400).json({ message: 'No file uploaded' });
+        }
+
+        const payment = await Payment.findById(paymentId);
+        if (!payment) return res.status(404).json({ message: 'Payment not found' });
+
+        if (payment.user.toString() !== userId) {
+            return res.status(403).json({ message: 'Unauthorized' });
+        }
+
+        payment.receiptImage = `/uploads/proofs/${req.file.filename}`;
+        payment.status = 'pending'; // Ensure it's pending for admin review
+        await payment.save();
+
+        res.json({ 
+            message: 'Proof uploaded successfully. Admin will verify it soon.',
+            receiptImage: payment.receiptImage 
+        });
+    } catch (error) {
+        console.error('Upload proof error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// @route   PATCH api/payments/:paymentId/verify
+// @desc    Verify and approve/reject payment (Admin)
+export const verifyPayment = async (req: AuthRequest, res: Response) => {
+    try {
+        const { paymentId } = req.params;
+        const { status, adminComment } = req.body;
+
+        if (!['completed', 'failed'].includes(status)) {
+            return res.status(400).json({ message: 'Invalid status for verification' });
+        }
+
+        const payment = await Payment.findById(paymentId);
+        if (!payment) return res.status(404).json({ message: 'Payment not found' });
+
+        payment.status = status as any;
+        if (adminComment) {
+            payment.metadata = { ...payment.metadata, adminComment };
+        }
+        
+        if (status === 'completed') {
+            payment.paymentDate = new Date();
+        }
+
+        await payment.save();
+
+        if (status === 'completed') {
+            // Enroll the student
+            const userId = payment.user.toString();
+            const courseId = payment.course.toString();
+
+            let enrollment = await Enrollment.findOne({ user: userId, course: courseId });
+            if (!enrollment) {
+                enrollment = new Enrollment({ user: userId, course: courseId, status: 'approved' });
+            } else {
+                enrollment.status = 'approved';
+            }
+            await enrollment.save();
+
+            // Update course students array
+            const course = await Course.findById(courseId);
+            if (course) {
+                const userObjectId = new mongoose.Types.ObjectId(userId);
+                if (!course.enrolledStudents.some(id => id.toString() === userId)) {
+                    course.enrolledStudents.push(userObjectId);
+                }
+
+                const studentIndex = course.students.findIndex(s => s.studentId.toString() === userId);
+                if (studentIndex > -1) {
+                    course.students[studentIndex].status = 'approved';
+                    course.students[studentIndex].approvedAt = new Date();
+                } else {
+                    course.students.push({
+                        studentId: userObjectId,
+                        status: 'approved',
+                        enrolledAt: new Date(),
+                        approvedAt: new Date()
+                    });
+                }
+                await course.save();
+                
+                // Award points for enrollment
+                await GamificationService.awardPoints(userId, 'course_enroll', {
+                    sourceId: courseId,
+                    reason: `Enrolled in course: ${course.title}`
+                });
+
+                // Update streak for enrollment activity
+                await GamificationService.updateStreak(userId);
+            }
+        }
+
+        // Notify Student
+        try {
+            await createNotification({
+                userId: payment.user,
+                type: status === 'completed' ? 'payment_verified' : 'payment_rejected',
+                title: status === 'completed' ? 'Payment Verified!' : 'Payment Issue',
+                message: status === 'completed' 
+                    ? `Your payment for "${payment.course}" has been verified. You now have full access.`
+                    : `Your payment was not verified. ${adminComment ? 'Reason: ' + adminComment : 'Please check your details.'}`,
+                link: status === 'completed' ? '/student/browse' : '/payment'
+            });
+            
+            // Also attempt socket notification
+            notifyUser(payment.user.toString(), `Your payment has been ${status === 'completed' ? 'verified' : 'rejected'}.`, { paymentId });
+        } catch (notifyErr) {
+            console.error('Notification error:', notifyErr);
+        }
+
+        res.json({ message: `Payment ${status} successfully`, payment });
+    } catch (error) {
+        console.error('Verify payment error:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };

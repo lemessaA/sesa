@@ -59,13 +59,22 @@ const Approvals: React.FC = () => {
         }
     };
 
-    const handleApproveEnrollment = async (enrollmentId: string) => {
+    const handleApproveEnrollment = async (enrollmentId: string, paymentId?: string) => {
         try {
-            await axios.put(
-                `${API_URL}/course-management/admin/enrollments/${enrollmentId}/verify`,
-                { status: 'approved' },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            if (paymentId) {
+                await axios.patch(
+                    `${API_URL}/payments/${paymentId}/verify`,
+                    { status: 'completed' },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+            } else {
+                // Fallback for enrollments without explicit payment record
+                await axios.put(
+                    `${API_URL}/course-management/admin/enrollments/${enrollmentId}/verify`,
+                    { status: 'approved' },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+            }
             showSuccess('Enrollment verified and access granted');
             fetchData();
         } catch (err: any) {
@@ -73,16 +82,24 @@ const Approvals: React.FC = () => {
         }
     };
 
-    const handleRejectEnrollment = async (enrollmentId: string) => {
+    const handleRejectEnrollment = async (enrollmentId: string, paymentId?: string) => {
         const comment = window.prompt("Enter a reason for rejection (optional):");
         if (comment === null) return;
 
         try {
-            await axios.put(
-                `${API_URL}/course-management/admin/enrollments/${enrollmentId}/reject`,
-                { adminComment: comment },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            if (paymentId) {
+                await axios.patch(
+                    `${API_URL}/payments/${paymentId}/verify`,
+                    { status: 'failed', adminComment: comment },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+            } else {
+                await axios.put(
+                    `${API_URL}/course-management/admin/enrollments/${enrollmentId}/reject`,
+                    { adminComment: comment },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+            }
             showSuccess('Enrollment rejected');
             fetchData();
         } catch (err: any) {
@@ -285,7 +302,7 @@ const Approvals: React.FC = () => {
                                                         <button
                                                             onClick={() => 
                                                                 isEnrollment 
-                                                                ? handleApproveEnrollment(data._id)
+                                                                ? handleApproveEnrollment(data._id, item.payment?._id)
                                                                 : handleCourseStatusUpdate(data._id, 'accept')
                                                             }
                                                             className="p-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-lg transition-colors border border-emerald-500/20"
@@ -296,7 +313,7 @@ const Approvals: React.FC = () => {
                                                         <button
                                                             onClick={() => 
                                                                 isEnrollment 
-                                                                ? handleRejectEnrollment(data._id)
+                                                                ? handleRejectEnrollment(data._id, item.payment?._id)
                                                                 : handleCourseStatusUpdate(data._id, 'reject')
                                                             }
                                                             className="p-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-lg transition-colors border border-rose-500/20"

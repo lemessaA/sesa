@@ -150,6 +150,27 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/forgot-password', passwordResetLimiter);
 
+// ── DB Readiness Gate ─────────────────────────────────────────────────────────────────
+// Blocks all /api/* routes (except /api/health) when MongoDB is not connected.
+// This prevents Mongoose from buffering queries that timeout after 10 seconds.
+let isDbConnected = false;
+
+app.use('/api', (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    // Health check always passes through
+    if (req.path === '/health') return next();
+    // AI routes work without DB (they call Gemini API)
+    if (req.path.startsWith('/ai')) return next();
+    if (!isDbConnected) {
+        return res.status(503).json({
+            success: false,
+            message: 'Service temporarily unavailable. The database is reconnecting. Please try again in a moment.',
+            code: 'DB_OFFLINE',
+        });
+    }
+    next();
+});
+
+
 // ── Health Check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
     const mem = process.memoryUsage();
@@ -220,40 +241,70 @@ initSocket(server);
 const MONGO_URI = process.env.MONGO_URI!;
 const maskedURI = MONGO_URI.replace(/\/\/.*@/, '//****:****@');
 
+
 const connectDB = async (retryCount = 0) => {
     const MAX_RETRIES = 5;
     const RETRY_DELAY = 5000; // 5 seconds
 
     try {
         logger.info(`[Database] Connecting to: ${maskedURI} (Attempt ${retryCount + 1})`);
-        await mongoose.connect(MONGO_URI);
-        logger.info('✅ Connected to MongoDB');
-        
-        server.listen(PORT, () => {
-            logger.info(`🚀 Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+        await mongoose.connect(MONGO_URI, {
+            // Fail fast so retries kick in quickly instead of 30s default
+            serverSelectionTimeoutMS: 10000,
+            socketTimeoutMS: 45000,
+            connectTimeoutMS: 10000,
         });
+        isDbConnected = true;
+        logger.info('✅ Connected to MongoDB');
+
+        if (!server.listening) {
+            server.listen(PORT, () => {
+                logger.info(`🚀 Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+            });
+        }
     } catch (err: any) {
         logger.error(`❌ MongoDB Connection Failed: ${err.message}`);
-        
+        isDbConnected = false;
+
         if (retryCount < MAX_RETRIES) {
-            logger.info(`Retrying in ${RETRY_DELAY/1000}s...`);
+            logger.info(`Retrying in ${RETRY_DELAY / 1000}s...`);
             setTimeout(() => connectDB(retryCount + 1), RETRY_DELAY);
         } else {
             logger.error('CRITICAL: Max retries reached. Server will stay in offline mode.');
-            // Still start the server so health checks and AI diagnostics can work
-            server.listen(PORT, () => {
-                logger.warn(`🚀 Server running in OFFLINE mode on port ${PORT}`);
-            });
+            // Still start the server so health checks and static routes can respond
+            if (!server.listening) {
+                server.listen(PORT, () => {
+                    logger.warn(`🚀 Server running in OFFLINE mode on port ${PORT}`);
+                });
+            }
         }
     }
 };
+
+// Sync isDbConnected with Mongoose connection events
+mongoose.connection.on('connected', () => {
+    isDbConnected = true;
+    logger.info('[Database] Mongoose connection established.');
+});
+mongoose.connection.on('disconnected', () => {
+    isDbConnected = false;
+    logger.warn('[Database] Mongoose connection lost. API routes will return 503 until reconnected.');
+});
+mongoose.connection.on('error', (err) => {
+    logger.error(`[Database] Mongoose connection error: ${err.message}`);
+});
 
 connectDB();
 
 // ── Handle unhandled rejections ───────────────────────────────────────────────
 process.on('unhandledRejection', (reason: any) => {
-    logger.error(`Unhandled Rejection: ${reason?.message || reason}`);
-    server.close(() => process.exit(1));
+    const msg = reason?.message || String(reason);
+    logger.error(`Unhandled Rejection: ${msg}`);
+    // Only shut down for truly unexpected rejections — not DB connection failures
+    // (those are handled by connectDB's retry logic above).
+    if (isDbConnected) {
+        server.close(() => process.exit(1));
+    }
 });
 
 process.on('uncaughtException', (err) => {

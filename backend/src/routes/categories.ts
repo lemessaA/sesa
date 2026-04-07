@@ -42,7 +42,8 @@ router.post(
             const category = new Category({
                 name,
                 description,
-                icon: icon || '📚'
+                icon: icon || '📚',
+                createdBy: (req as any).user.id
             });
 
             await category.save();

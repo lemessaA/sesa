@@ -34,6 +34,7 @@ interface Lesson {
         url: string;
         type: string;
     }[];
+    isFree?: boolean;
 }
 
 interface CoursePreview {
@@ -214,7 +215,6 @@ const BrowseCourses: React.FC = () => {
                     gradeLevel: course.gradeLevel || 'General',
                     hasFullAccess: enrollmentStatus === 'approved',
                     enrollmentStatus,
-                    freeVideosLimit,
                     category: course.category as any
                 } as LibraryCourse;
             });
@@ -443,7 +443,7 @@ const BrowseCourses: React.FC = () => {
                                                     className="inline-flex items-center gap-1 rounded-lg border border-slate-600 bg-slate-900/60 px-2.5 py-1.5 text-xs text-slate-100 hover:border-blue-400/50"
                                                 >
                                                     <PlayCircle className="h-3.5 w-3.5" />
-                                                    Watch First {course.freeVideosLimit} Part(s)
+                                                    Watch Free Previews
                                                 </button>
 
                                                 {isLocked && (
@@ -556,7 +556,7 @@ const BrowseCourses: React.FC = () => {
                                                         className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-500/25 hover:scale-105 transition-all"
                                                     >
                                                         <PlayCircle className="h-5 w-5" />
-                                                        Watch First {selectedCourse.freeVideosLimit} Part(s) for Free
+                                                        Watch Free Lessons
                                                     </button>
                                                 </motion.div>
                                             )}
@@ -664,7 +664,7 @@ const BrowseCourses: React.FC = () => {
                                                 ) : (
                                                     <div className="space-y-3">
                                                         {selectedCourse.lessons.map((lesson, index) => {
-                                                            const isFreePreview = index < selectedCourse.freeVideosLimit;
+                                                            const isFreePreview = lesson.isFree === true || index === 0; // Fallback to index 0 if not set
                                                             const isUnlocked = selectedCourse.hasFullAccess || isFreePreview;
                                                             const isSelected = selectedLessonIndex === index;
 

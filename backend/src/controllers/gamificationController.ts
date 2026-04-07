@@ -2,6 +2,7 @@ import type { Response } from 'express';
 import type { AuthRequest } from '../middleware/auth.js';
 import Gamification from '../models/Gamification.js';
 import { UserRole } from '../models/User.js';
+import { GamificationService } from '../services/gamificationService.js';
 
 /**
  * @route   GET /api/gamification/my-stats
@@ -195,18 +196,13 @@ export const awardBadge = async (req: AuthRequest, res: Response) => {
             earnedAt: new Date()
         });
 
-        // Award bonus points for badge
+        // Use Service to award bonus points
         const badgePoints = 100;
-        gamification.totalPoints += badgePoints;
-        
-        gamification.pointsHistory.push({
+        await GamificationService.awardPoints(userId, 'bonus', {
             points: badgePoints,
             reason: `Badge earned: ${badgeName}`,
-            source: 'achievement',
-            earnedAt: new Date()
+            sourceId: badgeId
         });
-
-        await gamification.save();
 
         res.json({
             message: 'Badge awarded successfully',
@@ -226,58 +222,11 @@ export const awardBadge = async (req: AuthRequest, res: Response) => {
 export const updateStreak = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user!.id;
-
-        let gamification = await Gamification.findOne({ userId });
+        const streak = await GamificationService.updateStreak(userId);
         
-        if (!gamification) {
-            gamification = new Gamification({ userId });
-        }
-
-        const now = new Date();
-        const lastActivity = gamification.streak.lastActivityDate;
-        const hoursSinceLastActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
-
-        // If last activity was today, don't update
-        if (hoursSinceLastActivity < 24) {
-            return res.json({
-                message: 'Streak already updated today',
-                streak: gamification.streak
-            });
-        }
-
-        // If last activity was yesterday, increment streak
-        if (hoursSinceLastActivity < 48) {
-            gamification.streak.current += 1;
-            
-            // Update longest streak if needed
-            if (gamification.streak.current > gamification.streak.longest) {
-                gamification.streak.longest = gamification.streak.current;
-            }
-
-            // Award streak points
-            const streakPoints = gamification.streak.current * 10;
-            gamification.totalPoints += streakPoints;
-            
-            gamification.pointsHistory.push({
-                points: streakPoints,
-                reason: `${gamification.streak.current}-day streak!`,
-                source: 'streak',
-                earnedAt: now
-            });
-
-            // Check for streak badges
-            await checkStreakBadges(gamification);
-        } else {
-            // Streak broken, reset to 1
-            gamification.streak.current = 1;
-        }
-
-        gamification.streak.lastActivityDate = now;
-        await gamification.save();
-
         res.json({
             message: 'Streak updated successfully',
-            streak: gamification.streak
+            streak
         });
     } catch (error) {
         console.error('Update streak error:', error);
@@ -380,26 +329,14 @@ export const awardPoints = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ message: 'Missing required fields' });
         }
 
-        let gamification = await Gamification.findOne({ userId });
-        
-        if (!gamification) {
-            gamification = new Gamification({ userId });
-        }
-
-        gamification.totalPoints += points;
-        
-        gamification.pointsHistory.push({
+        const result = await GamificationService.awardPoints(userId, 'bonus', {
             points,
-            reason,
-            source: 'bonus',
-            earnedAt: new Date()
+            reason
         });
-
-        await gamification.save();
 
         res.json({
             message: 'Points awarded successfully',
-            totalPoints: gamification.totalPoints
+            totalPoints: result.totalPoints
         });
     } catch (error) {
         console.error('Award points error:', error);

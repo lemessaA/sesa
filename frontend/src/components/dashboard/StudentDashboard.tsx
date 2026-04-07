@@ -4,6 +4,7 @@ import { Star, Flame, Zap, TrendingUp, MessageSquare, ClipboardCheck, Award } fr
 import DashboardLayout from './DashboardLayout';
 import TeacherEvaluation from '../student/TeacherEvaluation';
 import apiService from '../../utils/api';
+import GamificationStats from './GamificationStats';
 
 interface StudentDashboardProps {
     user: any;
@@ -68,53 +69,12 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
     return (
         <div className="pb-12">
-            {/* Student XP / Streak hero strip */}
-            <motion.div
-                initial={{ opacity: 0, y: -12 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mx-4 md:mx-8 mt-6 rounded-[2rem] bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-slate-700/50 p-6 flex flex-wrap gap-6 items-center shadow-2xl relative overflow-hidden"
-            >
-                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] -mr-32 -mt-32" />
-                
-                <div className="relative z-10 flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-900/20">
-                        <Star className="w-7 h-7 text-white" />
-                    </div>
-                    <div>
-                        <p className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Learner Level</p>
-                        <p className="text-2xl font-black text-white italic">Level {level}</p>
-                    </div>
-                </div>
+            {/* New Dynamic Gamification Stats */}
+            <div className="px-4 md:px-8">
+                <GamificationStats />
+            </div>
 
-                <div className="relative z-10 flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-rose-600 flex items-center justify-center shadow-lg shadow-orange-900/20">
-                        <Flame className="w-7 h-7 text-white" />
-                    </div>
-                    <div>
-                        <p className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Study Streak</p>
-                        <p className="text-2xl font-black text-white italic">{streakDays} Days 🔥</p>
-                    </div>
-                </div>
-
-                <div className="relative z-10 flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-lg shadow-purple-900/20">
-                        <Zap className="w-7 h-7 text-white" />
-                    </div>
-                    <div>
-                        <p className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Total XP</p>
-                        <p className="text-2xl font-black text-white italic">{xp.toLocaleString()} XP</p>
-                    </div>
-                </div>
-
-                <div className="ml-auto relative z-10">
-                    <div className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 backdrop-blur-md">
-                        <TrendingUp className="w-4 h-4 text-blue-400" />
-                        <span className="text-sm font-black text-blue-100 uppercase tracking-tighter">
-                            {approvedCourses.length} Active Courses
-                        </span>
-                    </div>
-                </div>
-            </motion.div>
+            {/* Course momentum section follows... */}
 
             {/* Course progress rings */}
             {approvedCourses.length > 0 && (
