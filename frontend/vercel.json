@@ -11,6 +11,6 @@
     }
   ],
   "env": {
-    "VITE_API_URL": "https://sesa-backend.onrender.com"
+    "VITE_API_URL": "https://devloperameen-sesa-acadamy-4.onrender.com/api"
   }
 }
