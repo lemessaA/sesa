@@ -527,8 +527,7 @@ const GamificationDashboard: React.FC = () => {
                                                     </div>
                                                 ))}
                                             </div>
-                                        </div>
-                                    </motion.div>
+                                        </motion.div>
                                     ))}
                                 </div>
                             </div>
