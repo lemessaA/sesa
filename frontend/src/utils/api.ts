@@ -3,7 +3,7 @@ import axios from 'axios';
 // API Configuration
 // Ensure the base URL always has the /api prefix for consistency
 const getApiBaseUrl = () => {
-  const url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const url = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
   return url.endsWith('/api') ? url : `${url}/api`;
 };
 

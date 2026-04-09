@@ -47,7 +47,8 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ roomId, onLeave }) => {
 
     useEffect(() => {
         // Initialize socket connection
-        socketRef.current = io(process.env.REACT_APP_API_URL || 'http://localhost:5000');
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        socketRef.current = io(apiUrl.replace(/\/api$/, ''));
         
         // Join room
         joinRoom();
