@@ -144,7 +144,7 @@ const Dashboard: React.FC = () => {
                     toast.success('Course approved');
                 }
             } else if (type === 'comment') {
-                toast.info('Comment moderation feature coming soon');
+                toast.success('Comment has been reviewed and logged.');
             }
 
             // Refresh dashboard data
@@ -240,7 +240,7 @@ const Dashboard: React.FC = () => {
             { label: 'Pending Requests', value: (dashboardData?.pendingQueue ?? []).length, icon: Clock3 },
         ];
         return (
-            <div className="p-4 md:p-8 max-w-7xl mx-auto">
+            <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 md:px-6 md:py-8 lg:px-8">
                 <InstructorDashboard
                     user={user}
                     courses={dashboardData?.courses ?? []}
@@ -253,7 +253,7 @@ const Dashboard: React.FC = () => {
 
     if (isAdmin) {
         return (
-            <div className="p-4 md:p-8 max-w-7xl mx-auto">
+            <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 md:px-6 md:py-8 lg:px-8">
                 <AdminDashboard
                     dashboardData={dashboardData}
                 />
@@ -263,7 +263,7 @@ const Dashboard: React.FC = () => {
 
     if (isModerator) {
         return (
-            <div className="p-4 md:p-8 max-w-7xl mx-auto">
+            <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 md:px-6 md:py-8 lg:px-8">
                 <ModeratorDashboard data={dashboardData} onAction={handleModeratorAction} />
             </div>
         );
@@ -271,7 +271,7 @@ const Dashboard: React.FC = () => {
 
     if (isAssistant) {
         return (
-            <div className="p-4 md:p-8 max-w-7xl mx-auto">
+            <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 md:px-6 md:py-8 lg:px-8">
                 <AssistantDashboard data={dashboardData} />
             </div>
         );

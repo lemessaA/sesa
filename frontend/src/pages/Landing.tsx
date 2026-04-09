@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { SafeImage } from '../components/ui/SafeImage';
-import SectionNav from '../components/landing/SectionNav';
+import { HERO_BACKGROUND_IMAGES } from '../constants/heroBackgrounds';
 
 /* ─── helpers ─── */
 const Counter: React.FC<{ end: number; suffix?: string }> = ({ end, suffix = '' }) => {
@@ -48,21 +48,13 @@ const QS = [
     { t: "Stay positive. Work hard. Make it happen.", a: "Unknown", e: "⚡", c: "Productivity" }
 ];
 
-// Rotating background images for hero section
-const HERO_IMAGES = [
-    '/sesa-tech-brand.png',
-    '/hero-students.png',
-    '/gallery-hijabi-teacher.png',
-    '/gallery-men-vision.png',
-    '/gallery-discussion.png',
-    '/gallery-prize.png',
-    '/sesa-student.png',
-    '/gallery-vision.png',
-    '/hero-tech.png',
-    '/sesa-tech-brand.png',
-];
-
 const BRAND_GLOBE = String.fromCodePoint(0x1f30d);
+const HERO_SEARCH_PLACEHOLDERS = [
+    'Search Python, Math, Physics...',
+    'Search Grade 9 Biology...',
+    'Search MERN Stack, React...',
+    'Search English, Chemistry...',
+];
 
 const Landing: React.FC = () => {
     const navigate = useNavigate();
@@ -163,13 +155,26 @@ const Landing: React.FC = () => {
     const q = activeQuotes[qi % activeQuotes.length] || QS[0];
 
     const [selectedImage, setSelectedImage] = useState<{ img: string; title: string } | null>(null);
+    const [heroScrollY, setHeroScrollY] = useState(0);
+    const [heroPlaceholderIndex, setHeroPlaceholderIndex] = useState(0);
     const nq = () => { let n; do { n = Math.floor(Math.random() * QS.length); } while (n === qi); setQi(n); };
     useEffect(() => { const id = setInterval(nq, 7000); return () => clearInterval(id); }, [qi]);
     useEffect(() => {
         const rotateId = window.setInterval(() => {
-            setHeroIndex((prev) => (prev + 1) % HERO_IMAGES.length);
+            setHeroIndex((prev) => (prev + 1) % HERO_BACKGROUND_IMAGES.length);
         }, 4000);
         return () => window.clearInterval(rotateId);
+    }, []);
+    useEffect(() => {
+        const handleScroll = () => setHeroScrollY(window.scrollY || 0);
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+    useEffect(() => {
+        const placeholderId = window.setInterval(() => {
+            setHeroPlaceholderIndex((prev) => (prev + 1) % HERO_SEARCH_PLACEHOLDERS.length);
+        }, 2400);
+        return () => window.clearInterval(placeholderId);
     }, []);
 
     const handleSearch = (e: React.FormEvent) => {
@@ -208,7 +213,6 @@ const Landing: React.FC = () => {
 
     return (
         <div className="overflow-hidden relative">
-            <SectionNav />
             {/* Image Lightbox Modal with Smooth Animation */}
             <AnimatePresence>
                 {selectedImage && (
@@ -273,9 +277,10 @@ const Landing: React.FC = () => {
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ duration: 2, ease: 'easeInOut' }}
+                        style={{ scale: 1 + Math.min(heroScrollY * 0.00008, 0.06) }}
                     >
                         <SafeImage
-                            src={HERO_IMAGES[heroIndex]}
+                            src={HERO_BACKGROUND_IMAGES[heroIndex]}
                             alt="SESA Academy"
                             className="w-full h-full object-cover brightness-95 saturate-110"
                             wrapperClassName="absolute inset-0"
@@ -288,82 +293,53 @@ const Landing: React.FC = () => {
                     </motion.div>
                 </AnimatePresence>
 
-                {/* Optimized Overlay for Text Visibility */}
-                <div className="absolute inset-0 bg-gradient-to-r from-slate-900/75 via-blue-900/60 to-slate-900/75" />
-                <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/40" />
+                {/* Premium overlays */}
+                <div className="absolute inset-0 bg-gradient-to-r from-[#030712]/88 via-[#0b1f4d]/72 to-[#030712]/86" />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/25 to-black/60" />
+                <div className="absolute -left-20 top-24 h-52 w-52 rounded-full bg-blue-500/20 blur-3xl" />
+                <div className="absolute -right-16 bottom-28 h-56 w-56 rounded-full bg-cyan-400/20 blur-3xl" />
+                <motion.div
+                    animate={{ y: [0, -10, 0], opacity: [0.25, 0.4, 0.25] }}
+                    transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+                    className="absolute left-[16%] top-[22%] h-2 w-2 rounded-full bg-cyan-300"
+                />
+                <motion.div
+                    animate={{ y: [0, 8, 0], opacity: [0.2, 0.35, 0.2] }}
+                    transition={{ duration: 5.2, repeat: Infinity, ease: 'easeInOut' }}
+                    className="absolute right-[18%] top-[34%] h-2.5 w-2.5 rounded-full bg-blue-300"
+                />
 
                 {/* Main Content - Centered */}
                 <div className="container mx-auto px-6 py-20 relative z-20">
-                    <div className="max-w-3xl mx-auto text-center">
+                    <div className="mx-auto max-w-3xl text-center">
                         {/* SESA Brand - Smaller with Globe Colors */}
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
+                            initial={{ opacity: 0, scale: 0.85, y: 14 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
                             transition={{ duration: 0.8, delay: 0.2 }}
                             className="mb-6"
                         >
-                            <h1 className="text-5xl md:text-6xl lg:text-7xl font-black leading-none">
-                                <span className="bg-gradient-to-r from-blue-500 via-blue-400 to-cyan-400 bg-clip-text text-transparent drop-shadow-2xl">
+                            <motion.h1
+                                animate={{ y: [0, -2, 0] }}
+                                transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+                                className="text-5xl md:text-7xl lg:text-8xl font-black italic tracking-tight leading-none"
+                                style={{ fontFamily: '"Times New Roman", Georgia, serif' }}
+                            >
+                                <span className="text-premium-glow bg-gradient-to-r from-white via-emerald-300 to-[#1e3a8a] bg-clip-text text-transparent drop-shadow-2xl [text-shadow:0_0_35px_rgba(16,185,129,0.35)]">
                                     SESA
                                 </span>
-                                <span className="text-4xl md:text-5xl lg:text-6xl ml-2">{BRAND_GLOBE}</span>
-                            </h1>
+                                <span className="ml-2 text-4xl md:text-5xl lg:text-6xl">{BRAND_GLOBE}</span>
+                            </motion.h1>
                         </motion.div>
 
-                        {/* Main Heading - Smaller */}
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }} className="mb-3">
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-200 text-xs font-bold border border-emerald-400/30">
-                                <Sparkles className="h-3.5 w-3.5" />
-                                {t('aiPowered')}
-                            </span>
-                        </motion.div>
-                        <motion.h2
-                            initial={{ opacity: 0, y: 40 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.8, delay: 0.4 }}
-                            className="text-xl md:text-2xl lg:text-3xl font-bold text-white/95 mb-5 drop-shadow-lg"
-                        >
-                            {t('tagline')}
-                        </motion.h2>
-
-                        {/* Description - Smaller and More Readable */}
                         <motion.p
-                            initial={{ opacity: 0, y: 40 }}
+                            initial={{ opacity: 0, y: 22 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.8, delay: 0.5 }}
-                            className="text-sm md:text-base text-white/85 font-normal mb-8 max-w-2xl mx-auto leading-relaxed drop-shadow-lg"
+                            transition={{ duration: 0.7, delay: 0.42 }}
+                            className="mx-auto mb-8 max-w-2xl text-base italic leading-relaxed text-white/90 md:text-xl"
                         >
-                            {t('heroDesc')}
+                            SESA{BRAND_GLOBE} is a safe education and skills academy from Ethiopia to the world, built for smart learning.
                         </motion.p>
-
-                        {/* CTA Buttons - Smaller */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 40 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.8, delay: 0.6 }}
-                            className="flex flex-col sm:flex-row gap-3 justify-center"
-                        >
-                            <Link to="/auth?role=student">
-                                <motion.button
-                                    whileHover={{ scale: 1.05, boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
-                                    whileTap={{ scale: 0.95 }}
-                                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-bold rounded-xl shadow-2xl flex items-center justify-center gap-2 text-base"
-                                >
-                                    <Rocket className="w-5 h-5" />
-                                    {t('startLearning')}
-                                </motion.button>
-                            </Link>
-                            <a href="#demo-videos">
-                                <motion.button
-                                    whileHover={{ scale: 1.05, boxShadow: '0 20px 40px rgba(255,255,255,0.2)' }}
-                                    whileTap={{ scale: 0.95 }}
-                                    className="px-6 py-3 bg-white/20 backdrop-blur-xl border-2 border-white/50 text-white font-bold rounded-xl shadow-xl flex items-center justify-center gap-2 text-base"
-                                >
-                                    <Play className="w-5 h-5" />
-                                    {t('watchDemo')}
-                                </motion.button>
-                            </a>
-                        </motion.div>
 
                         {/* Course Search Teaser */}
                         <motion.div
@@ -372,39 +348,34 @@ const Landing: React.FC = () => {
                             transition={{ duration: 0.7, delay: 0.8 }}
                             className="mt-6"
                         >
-                            <form onSubmit={handleSearch} className="flex items-center gap-2 max-w-md mx-auto">
-                                <div className="flex-1 flex items-center gap-2 bg-white/15 backdrop-blur-xl border border-white/30 rounded-2xl px-4 py-2.5 focus-within:border-cyan-400/70 transition-all">
-                                    <Search className="w-4 h-4 text-white/60 flex-shrink-0" />
+                            <form onSubmit={handleSearch} className="flex items-center gap-2 max-w-xl mx-auto">
+                                <div className="flex-1 flex items-center gap-2 bg-white/18 backdrop-blur-xl border border-white/35 rounded-2xl px-4 py-3.5 shadow-xl shadow-black/25 focus-within:border-cyan-300/80 transition-all duration-300">
+                                    <Search className="w-5 h-5 text-white/70 flex-shrink-0" />
                                     <input
                                         type="text"
                                         value={searchQuery}
                                         onChange={e => setSearchQuery(e.target.value)}
-                                        placeholder={t('Search courses, subjects...', 'ኮርሶችን ይፈልጉ...')}
-                                        className="flex-1 bg-transparent border-none outline-none text-white placeholder:text-white/50 text-sm"
+                                        placeholder={HERO_SEARCH_PLACEHOLDERS[heroPlaceholderIndex]}
+                                        className="flex-1 bg-transparent border-none outline-none text-white placeholder:text-white/55 text-sm md:text-base"
                                     />
                                 </div>
                                 <motion.button
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     type="submit"
-                                    className="px-4 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-white font-bold rounded-2xl text-sm transition-colors shadow-lg"
+                                    className="px-5 py-3.5 bg-cyan-500 hover:bg-cyan-400 text-white font-bold rounded-2xl text-sm transition-colors shadow-lg shadow-cyan-500/30"
                                 >
                                     {t('Search', 'ፈልግ')}
                                 </motion.button>
                             </form>
-                            <p className="text-white/50 text-xs mt-2">{t('Popular: React, Physics, Math, Python', 'ታዋቂ: React, Physics, Math, Python')}</p>
+                            <p className="mt-2 text-xs text-white/70">
+                                Quickly find lessons by subject, level, or topic.
+                            </p>
                         </motion.div>
+
                     </div>
                 </div>
 
-                {/* Scroll Indicator */}
-                <motion.div
-                    animate={{ y: [0, 10, 0] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                    className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20"
-                >
-                    <ChevronDown className="w-8 h-8 text-white/70" />
-                </motion.div>
             </section>
 
             {/* ══════ STATS ══════ */}

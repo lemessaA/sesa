@@ -26,14 +26,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles,
         );
     }
 
-    // Redirect to dashboard if authenticated and this is a guest-only route (like Login)
+    // Redirect authenticated users away from guest-only route (like Login)
     if (requireGuest && isAuthenticated) {
-        return <Navigate to="/dashboard" replace />;
+        return <Navigate to="/" replace />;
     }
 
-    // Redirect to home if not authenticated and this is a protected route
+    // Redirect to auth if not authenticated and this is a protected route
     if (!requireGuest && !isAuthenticated) {
-        return <Navigate to="/" replace />;
+        return <Navigate to="/auth" replace />;
     }
 
     // Check role-based access

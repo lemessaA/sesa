@@ -1,4 +1,4 @@
-import 'dotenv/config'; // Load env vars before imports
+import 'dotenv/config';
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
@@ -33,14 +33,11 @@ import forumRoutes from './routes/forum.js';
 import messageRoutes from './routes/messages.js';
 import evaluationRoutes from './routes/evaluations.js';
 import videoWorkflowRoutes from './routes/videoWorkflowRoutes.js';
-import aiRoutes from './routes/ai.js';
 import quizRoutes from './routes/quizzes.js';
 import assignmentRoutes from './routes/assignments.js';
 import gamificationRoutes from './routes/gamification.js';
-import aiTutorRoutes from './routes/aiTutor.js';
 import collaborationRoutes from './routes/collaboration.js';
 import advancedAnalyticsRoutes from './routes/advancedAnalytics.js';
-import smartContentRoutes from './routes/smartContent.js';
 
 // ── Utilities & Middleware ────────────────────────────────────────────────────
 import logger, { morganStream } from './utils/logger.js';
@@ -48,6 +45,10 @@ import { globalErrorHandler, notFoundHandler } from './middleware/errorHandler.j
 import http from 'http';
 import { initSocket } from './utils/socket.js';
 import { fileURLToPath } from 'url';
+
+// Force local MongoDB for this local setup.
+process.env.MONGO_URI = 'mongodb://localhost:27017/sesa_db';
+process.env.NODE_ENV = 'development';
 
 // __dirname replacement for ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -89,7 +90,11 @@ const getCORSOrigins = () => {
 };
 
 const allowedOrigin = getCORSOrigins();
-logger.info(`[CORS] Allowed origins: ${Array.isArray(allowedOrigin) ? allowedOrigin.join(', ') : allowedOrigin}`);
+if (process.env.NODE_ENV === 'production' && !allowedOrigin) {
+    logger.error('🛑 CRITICAL: CORS_ORIGIN is not set. Production requests will be BLOCKED.');
+} else {
+    logger.info(`✅ [CORS] Allowed origins: ${Array.isArray(allowedOrigin) ? allowedOrigin.join(', ') : allowedOrigin}`);
+}
 
 app.use(cors({
     origin: allowedOrigin,
@@ -161,9 +166,10 @@ app.use('/api', (req: express.Request, res: express.Response, next: express.Next
     // AI routes work without DB (they call Gemini API)
     if (req.path.startsWith('/ai')) return next();
     if (!isDbConnected) {
+        logger.warn(`[API] 503 attempt for ${req.path} - MongoDB not ready`);
         return res.status(503).json({
             success: false,
-            message: 'Service temporarily unavailable. The database is reconnecting. Please try again in a moment.',
+            message: 'Service temporarily unavailable. The database is reconnecting or access is restricted. Please check your DB configuration.',
             code: 'DB_OFFLINE',
         });
     }
@@ -214,14 +220,11 @@ app.use('/api/forums', forumRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/evaluations', evaluationRoutes);
 app.use('/api/video-workflow', videoWorkflowRoutes);
-app.use('/api/ai', aiRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/gamification', gamificationRoutes);
-app.use('/api/ai-tutor', aiTutorRoutes);
 app.use('/api/collaboration', collaborationRoutes);
 app.use('/api/advanced-analytics', advancedAnalyticsRoutes);
-app.use('/api/smart-content', smartContentRoutes);
 
 // ── Static Files ──────────────────────────────────────────────────────────────
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GraduationCap, Menu, X, Sun, Moon, LogOut, LogIn, Search, User } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import NotificationBell from './NotificationBell';
@@ -16,7 +16,9 @@ const Navbar: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [suggestions, setSuggestions] = useState<{ courses: any[]; teachers: any[] } | null>(null);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
+    const [isScrolled, setIsScrolled] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
 
     const { user, logout, isAuthenticated } = useAuth();
     const { language, setLanguage, t } = useLanguage();
@@ -45,6 +47,12 @@ const Navbar: React.FC = () => {
                 }
             }, 100);
         }
+    }, []);
+    React.useEffect(() => {
+        const onScroll = () => setIsScrolled(window.scrollY > 12);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        onScroll();
+        return () => window.removeEventListener('scroll', onScroll);
     }, []);
 
     // Search logic
@@ -98,8 +106,18 @@ const Navbar: React.FC = () => {
         }
     };
 
+    const isActiveLink = (path: string, isHash: boolean): boolean => {
+        if (isHash) {
+            if (location.pathname !== '/') return false;
+            const hash = path.startsWith('/#') ? `#${path.slice(2)}` : path;
+            return location.hash === hash;
+        }
+        if (path === '/') return location.pathname === '/';
+        return location.pathname.startsWith(path);
+    };
+
     return (
-        <nav className="bg-white dark:bg-dark-card shadow-premium sticky top-0 z-50 transition-colors duration-300">
+        <nav className={`sticky top-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/88 dark:bg-dark-card/82 backdrop-blur-xl shadow-xl border-b border-gray-200/60 dark:border-gray-700/40' : 'bg-white dark:bg-dark-card shadow-premium'}`}>
             <div className="container mx-auto px-4 py-3 flex justify-between items-center">
                 <Link to="/" className="flex items-center space-x-2 shrink-0">
                     <motion.div
@@ -200,10 +218,14 @@ const Navbar: React.FC = () => {
                             <Link
                                 to={link.path}
                                 onClick={(e) => handleNavClick(e, link.path, link.isHash)}
-                                className="font-medium text-dark-bg dark:text-dark-text hover:text-primary transition-colors relative group inline-block py-1"
+                                className={`font-medium transition-colors relative group inline-block py-1 ${
+                                    isActiveLink(link.path, link.isHash)
+                                        ? 'text-primary dark:text-cyan-300'
+                                        : 'text-dark-bg dark:text-dark-text hover:text-primary'
+                                }`}
                             >
                                 {link.name}
-                                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
+                                <span className={`absolute bottom-0 left-0 h-0.5 bg-primary transition-all duration-300 ${isActiveLink(link.path, link.isHash) ? 'w-full' : 'w-0 group-hover:w-full'}`} />
                             </Link>
                         </motion.div>
                     ))}
@@ -245,7 +267,7 @@ const Navbar: React.FC = () => {
                     ) : (
                         <Link
                             to="/auth"
-                            className="bg-primary text-white px-4 py-2 rounded-lg font-bold hover:bg-secondary transition-all shadow-md inline-flex items-center gap-2"
+                            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#2563eb] to-[#06b6d4] px-4 py-2 font-bold text-white shadow-lg shadow-blue-500/30 transition-all duration-300 hover:scale-[1.03] hover:shadow-blue-500/45"
                         >
                             <LogIn className="w-4 h-4" />
                             {t('loginRegister')}

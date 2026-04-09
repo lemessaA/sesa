@@ -70,7 +70,7 @@ const Footer: React.FC<FooterProps> = ({ compact = false }) => {
                             {[Facebook, Twitter, Instagram, Youtube, Linkedin].map((Icon, index) => (
                                 <motion.a
                                     key={index}
-                                    href="#"
+                                    href="/"
                                     aria-label="Social link"
                                     whileHover={{ scale: 1.1, y: -2 }}
                                     whileTap={{ scale: 0.95 }}
@@ -95,10 +95,10 @@ const Footer: React.FC<FooterProps> = ({ compact = false }) => {
                     <div>
                         <h4 className="mb-4 text-sm font-bold uppercase tracking-wider text-white">{t('company')}</h4>
                         <ul className="space-y-2 text-sm">
-                            <li><a href="#" className="hover:text-primary transition-colors">{t('about')}</a></li>
-                            <li><a href="#" className="hover:text-primary transition-colors">{t('privacy')}</a></li>
-                            <li><a href="#" className="hover:text-primary transition-colors">{t('terms')}</a></li>
-                            <li><a href="#" className="hover:text-primary transition-colors">{t('support')}</a></li>
+                            <li><Link to="/faq" className="hover:text-primary transition-colors">{t('about')}</Link></li>
+                            <li><Link to="/faq" className="hover:text-primary transition-colors">{t('privacy')}</Link></li>
+                            <li><Link to="/faq" className="hover:text-primary transition-colors">{t('terms')}</Link></li>
+                            <li><Link to="/auth" className="hover:text-primary transition-colors">{t('support')}</Link></li>
                         </ul>
                     </div>
 

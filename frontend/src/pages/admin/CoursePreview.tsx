@@ -3,10 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
     ChevronLeft, Play, FileText, CheckCircle, XCircle, 
-    BookOpen, Globe, Shield, AlertCircle
+    BookOpen, Globe, Shield, AlertCircle, ExternalLink
 } from 'lucide-react';
 import { apiService } from '../../utils/api';
 import { showSuccess, showError } from '../../utils/toast';
+import { extractYoutubeVideoId } from '../../utils/youtube';
 
 const CoursePreview: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -25,7 +26,8 @@ const CoursePreview: React.FC = () => {
         try {
             setLoading(true);
             const res = await apiService.admin.previewCourse(id!);
-            setCourse(res.data);
+            const payload = res.data as { course?: any };
+            setCourse(payload.course ?? res.data);
         } catch (err) {
             showError('Failed to load course preview');
             navigate('/admin/approvals');
@@ -66,6 +68,29 @@ const CoursePreview: React.FC = () => {
     if (!course) return null;
 
     const currentLesson = course.lessons?.[activeLesson];
+    const lessonVideoUrl =
+        typeof currentLesson?.videoUrl === 'string' ? currentLesson.videoUrl.trim() : '';
+    const previewSource = String(course.previewVideoUrl || course.resourceUrl || '').trim();
+
+    const embedId =
+        extractYoutubeVideoId(lessonVideoUrl) ||
+        (!course.lessons?.length ? extractYoutubeVideoId(previewSource) : null) ||
+        course.youtubeVideoId ||
+        null;
+
+    const fallbackWatchUrl =
+        !embedId &&
+        (() => {
+            if (lessonVideoUrl && /^https?:\/\//i.test(lessonVideoUrl)) return lessonVideoUrl;
+            if (
+                (!course.lessons?.length || !lessonVideoUrl) &&
+                previewSource &&
+                /^https?:\/\//i.test(previewSource)
+            ) {
+                return previewSource;
+            }
+            return null;
+        })();
 
     return (
         <div className="min-h-screen bg-[#0a192f] text-slate-200 p-4 md:p-8">
@@ -115,20 +140,38 @@ const CoursePreview: React.FC = () => {
                     <div className="lg:col-span-8 space-y-6">
                         {/* Video Player Placeholder */}
                         <div className="aspect-video bg-slate-900 rounded-3xl border border-slate-800 flex flex-col items-center justify-center relative overflow-hidden group shadow-2xl">
-                            {currentLesson?.youtubeVideoId ? (
-                                <iframe 
-                                    className="w-full h-full"
-                                    src={`https://www.youtube.com/embed/${currentLesson.youtubeVideoId}`}
+                            {embedId ? (
+                                <iframe
+                                    className="h-full w-full"
+                                    src={`https://www.youtube.com/embed/${embedId}`}
                                     title="Lesson Preview"
                                     frameBorder="0"
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                     allowFullScreen
                                 />
+                            ) : fallbackWatchUrl ? (
+                                <div className="relative z-10 flex max-w-lg flex-col items-center gap-4 px-6 text-center">
+                                    <ExternalLink className="h-12 w-12 text-cyan-500/80" />
+                                    <p className="text-sm font-semibold text-slate-300">
+                                        This lesson uses a non-YouTube or unembeddable URL. Open it in a new tab to
+                                        preview.
+                                    </p>
+                                    <a
+                                        href={fallbackWatchUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="rounded-xl bg-cyan-500/20 px-5 py-2.5 text-sm font-bold text-cyan-300 underline-offset-4 hover:underline"
+                                    >
+                                        Open video link
+                                    </a>
+                                </div>
                             ) : (
                                 <>
                                     <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-purple-500/5" />
-                                    <Play className="w-16 h-16 text-slate-700 group-hover:text-cyan-500 transition-colors" />
-                                    <p className="mt-4 text-slate-500 font-bold">Video content missing or invalid ID</p>
+                                    <Play className="relative z-10 h-16 w-16 text-slate-700 transition-colors group-hover:text-cyan-500" />
+                                    <p className="relative z-10 mt-4 font-bold text-slate-500">
+                                        Video content missing or invalid ID
+                                    </p>
                                 </>
                             )}
                         </div>
@@ -227,7 +270,11 @@ const CoursePreview: React.FC = () => {
                                                 )}
                                             </div>
                                         </div>
-                                        {lesson.youtubeVideoId && <Play className={`w-4 h-4 ${activeLesson === index ? 'text-cyan-400' : 'text-slate-600'}`} />}
+                                        {(extractYoutubeVideoId(lesson?.videoUrl) || lesson?.videoUrl) && (
+                                            <Play
+                                                className={`h-4 w-4 ${activeLesson === index ? 'text-cyan-400' : 'text-slate-600'}`}
+                                            />
+                                        )}
                                     </button>
                                 ))}
                             </div>

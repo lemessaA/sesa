@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import {
     Activity,
@@ -31,6 +30,7 @@ import {
     CourseCardSkeleton,
     type StudentCourse,
 } from './CourseCard';
+import apiService from '../../utils/api';
 
 const dashboardQueryClient = new QueryClient({
     defaultOptions: {
@@ -131,6 +131,7 @@ const normalizeCourse = (course: ApiCourseResponse, index: number): StudentCours
         title: course.title,
         summary: course.description ?? 'Continue your premium learning sprint with smart checkpoints.',
         instructor: instructorName,
+        instructorId: typeof course.instructor === 'string' ? course.instructor : '',
         progressPercent,
         totalLessons,
         completedLessons,
@@ -147,32 +148,27 @@ const fetchStudentCourses = async (token?: string): Promise<StudentCourse[]> => 
         return [];
     }
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-    const response = await axios.get<ApiCourseResponse[]>(`${API_URL}/courses/my/enrolled`, {
-        headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (!Array.isArray(response.data) || response.data.length === 0) {
+    const response = await apiService.enrollments.getMyEnrollments();
+    const courses = Array.isArray(response.data) ? response.data : [];
+    if (courses.length === 0) {
         return [];
     }
 
-    return response.data.map(normalizeCourse);
+    return courses.map(normalizeCourse);
 };
 
 const fetchDiscoverCourses = async (token?: string): Promise<StudentCourse[]> => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-    const response = await axios.get<ApiCourseResponse[]>(`${API_URL}/courses`);
+    const response = await apiService.courses.getAll();
+    const allCourses = Array.isArray(response.data) ? response.data : [];
     
     // Filter out courses the student is already enrolled in
     let enrolledIds: string[] = [];
     if (token) {
-        const enrolledResponse = await axios.get<ApiCourseResponse[]>(`${API_URL}/courses/my/enrolled`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        enrolledIds = enrolledResponse.data.map(c => c._id);
+        const enrolledResponse = await apiService.enrollments.getMyEnrollments();
+        enrolledIds = (Array.isArray(enrolledResponse.data) ? enrolledResponse.data : []).map(c => c._id);
     }
 
-    return (response.data ?? [])
+    return (allCourses ?? [])
         .filter(c => !enrolledIds.includes(c._id))
         .slice(0, 4)
         .map((c, i) => normalizeCourse(c, i));
@@ -214,7 +210,7 @@ const CommandPalettePlaceholder: React.FC<CommandPaletteProps> = ({ isOpen, onCl
                             </kbd>
                         </div>
                         <p className="mt-3 text-xs text-slate-400">
-                            Command palette placeholder: wire keyboard actions and route shortcuts for the final sprint.
+                            Use CMD+K or CTRL+K to quickly search and jump to available dashboard actions.
                         </p>
                     </motion.div>
                 </motion.div>
@@ -353,7 +349,7 @@ const DashboardLayoutContent: React.FC<DashboardLayoutProps> = ({
     const navItems = getNavItems();
 
     return (
-        <div className={cn('text-slate-100 flex min-h-screen bg-slate-950', className)}>
+        <div className={cn('text-slate-100 flex min-h-screen overflow-x-clip bg-slate-950', className)}>
             {/* Sidebar Navigation */}
             <aside className="hidden lg:flex flex-col w-64 border-r border-white/5 bg-slate-900/50 backdrop-blur-xl sticky top-0 h-screen overflow-y-auto">
                 <div className="p-8">
@@ -392,9 +388,9 @@ const DashboardLayoutContent: React.FC<DashboardLayoutProps> = ({
             </aside>
 
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col">
+            <div className="flex min-w-0 flex-1 flex-col">
             <motion.main
-                className="relative z-10 mx-auto grid w-full max-w-7xl grid-cols-1 gap-6 px-4 py-6 lg:grid-cols-12 lg:px-8"
+                className="relative z-10 mx-auto grid w-full max-w-7xl grid-cols-1 gap-4 px-3 py-4 sm:gap-5 sm:px-4 sm:py-6 lg:grid-cols-12 lg:gap-6 lg:px-8"
                 variants={containerVariants}
                 initial="hidden"
                 animate="show"
@@ -572,7 +568,7 @@ const DashboardLayoutContent: React.FC<DashboardLayoutProps> = ({
                     )}
                 </motion.section>
 
-                <motion.aside className="space-y-6 lg:col-span-4" variants={itemVariants}>
+                <motion.aside className="min-w-0 space-y-6 lg:col-span-4" variants={itemVariants}>
                     <Card className="p-5">
                         <div className="mb-4 flex items-center justify-between">
                             <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-300">Course View</h3>
@@ -673,7 +669,7 @@ const DashboardLayoutContent: React.FC<DashboardLayoutProps> = ({
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 20 }}
-                        className="fixed bottom-6 right-6 z-50"
+                        className="fixed bottom-20 right-3 z-50 sm:bottom-6 sm:right-6"
                     >
                         <Card className="flex items-center gap-3 border-emerald-400/40 bg-slate-900/95 px-4 py-3">
                             <div className="rounded-lg bg-emerald-500/20 p-2 text-emerald-300">

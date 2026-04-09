@@ -4,14 +4,14 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from "./context/AuthContext";
 import { LanguageProvider } from "./context/LanguageContext";
+import { useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
 import AnnouncementBanner from "./components/AnnouncementBanner";
 import GlobalPopup from "./components/GlobalPopup";
 import Footer from "./components/Footer";
 import BackToTop from "./components/BackToTop";
-import AIHelper from "./components/AIHelper";
-import AccessibilityFAB from "./components/AccessibilityFAB";
+import SafeEduConcierge from "./components/SafeEduConcierge";
 import Landing from "./pages/Landing";
 import Login from "./pages/auth/Login";
 import Dashboard from "./pages/Dashboard";
@@ -40,17 +40,29 @@ import "./styles/accessibility.css";
 
 const AppRoutes: React.FC = () => {
     const location = useLocation();
+    const { isAuthenticated, isLoading } = useAuth();
     const isAppContent = ['/dashboard', '/student', '/instructor', '/admin', '/payment'].some(path => location.pathname.startsWith(path));
+    const showPublicChrome = isAuthenticated && !isAppContent;
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-bg">
+                <div className="text-center">
+                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                    <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-dark-bg transition-colors duration-300 flex flex-col">
-            {!isAppContent && <Navbar />}
-            {!isAppContent && <AnnouncementBanner />}
-            <GlobalPopup />
-            <AIHelper />
+            {showPublicChrome && <Navbar />}
+            {showPublicChrome && <AnnouncementBanner />}
+            {isAuthenticated && <GlobalPopup />}
             <main className="flex-grow">
                 <Routes>
-                    <Route path="/" element={<Landing />} />
+                    <Route path="/" element={isAuthenticated ? <Landing /> : <Navigate to="/auth" replace />} />
 
                     {/* Unified Auth */}
                     <Route 
@@ -65,8 +77,22 @@ const AppRoutes: React.FC = () => {
                     <Route path="/login/student" element={<Navigate to="/auth?role=student" replace />} />
                     <Route path="/login/instructor" element={<Navigate to="/auth?role=instructor" replace />} />
                     <Route path="/login/admin" element={<Navigate to="/auth?role=admin" replace />} />
-                    <Route path="/faq" element={<FAQ />} />
-                    <Route path="/marketplace" element={<Marketplace />} />
+                    <Route
+                        path="/faq"
+                        element={
+                            <ProtectedRoute wrapLayout>
+                                <FAQ />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/marketplace"
+                        element={
+                            <ProtectedRoute wrapLayout>
+                                <Marketplace />
+                            </ProtectedRoute>
+                        }
+                    />
 
                     {/* Payment Route */}
                     <Route 
@@ -222,12 +248,12 @@ const AppRoutes: React.FC = () => {
                         }
                     />
 
-                    <Route path="*" element={<NotFound />} />
+                    <Route path="*" element={isAuthenticated ? <NotFound /> : <Navigate to="/auth" replace />} />
                 </Routes>
             </main>
-            {!isAppContent && <Footer />}
-            <BackToTop />
-            <AccessibilityFAB />
+            {showPublicChrome && <Footer />}
+            {showPublicChrome && <BackToTop />}
+            {isAuthenticated && <SafeEduConcierge />}
 
             {/* Toast Notifications */}
             <ToastContainer

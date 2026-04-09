@@ -1,10 +1,48 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Award } from 'lucide-react';
+import { ArrowLeft, Award, Download } from 'lucide-react';
+import apiService from '../../utils/api';
+
+interface CertificateRecord {
+    _id: string;
+    certificateNumber: string;
+    issuedDate: string;
+    certificateUrl?: string;
+    course?: {
+        title?: string;
+    };
+}
 
 const Certificates: React.FC = () => {
     const navigate = useNavigate();
+    const [certificates, setCertificates] = React.useState<CertificateRecord[]>([]);
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        let mounted = true;
+        const load = async () => {
+            try {
+                const response = await apiService.certificates.getMyCertificates();
+                if (mounted) {
+                    setCertificates(Array.isArray(response.data) ? response.data : []);
+                }
+            } catch (error) {
+                if (mounted) {
+                    setCertificates([]);
+                }
+            } finally {
+                if (mounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        load();
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     return (
         <div className="p-4 md:p-8">
@@ -29,29 +67,61 @@ const Certificates: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Empty State */}
-                    <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-100 dark:border-gray-800 p-12 text-center">
-                        <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Award className="w-10 h-10 text-amber-600" />
+                    {loading ? (
+                        <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-100 dark:border-gray-800 p-12 text-center">
+                            <p className="text-gray-500 dark:text-gray-400">Loading certificates...</p>
                         </div>
-                        <h3 className="text-xl font-bold text-dark-bg dark:text-white mb-2">No Certificates Yet</h3>
-                        <p className="text-gray-500 dark:text-gray-400 mb-6">
-                            Complete courses to earn certificates and showcase your achievements
-                        </p>
-                        <button
-                            onClick={() => navigate('/student/browse')}
-                            className="px-6 py-3 bg-gradient-to-r from-primary to-accent text-white rounded-xl font-bold hover:shadow-lg transition-all"
-                        >
-                            Browse Courses
-                        </button>
-                    </div>
-
-                    {/* Info Message */}
-                    <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
-                        <p className="text-sm text-blue-600 dark:text-blue-400">
-                            🏆 Certificate generation and progress tracking will be implemented soon. Keep learning!
-                        </p>
-                    </div>
+                    ) : certificates.length === 0 ? (
+                        <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-100 dark:border-gray-800 p-12 text-center">
+                            <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Award className="w-10 h-10 text-amber-600" />
+                            </div>
+                            <h3 className="text-xl font-bold text-dark-bg dark:text-white mb-2">No Certificates Yet</h3>
+                            <p className="text-gray-500 dark:text-gray-400 mb-6">
+                                Complete courses to earn certificates and showcase your achievements
+                            </p>
+                            <button
+                                onClick={() => navigate('/student/browse')}
+                                className="px-6 py-3 bg-gradient-to-r from-primary to-accent text-white rounded-xl font-bold hover:shadow-lg transition-all"
+                            >
+                                Browse Courses
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="grid gap-4">
+                            {certificates.map((certificate) => (
+                                <div
+                                    key={certificate._id}
+                                    className="bg-white dark:bg-dark-card rounded-2xl border border-gray-100 dark:border-gray-800 p-5 flex items-center justify-between"
+                                >
+                                    <div>
+                                        <h3 className="text-lg font-bold text-dark-bg dark:text-white">
+                                            {certificate.course?.title || 'Completed Course'}
+                                        </h3>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                                            Certificate #{certificate.certificateNumber}
+                                        </p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-500">
+                                            Issued {new Date(certificate.issuedDate).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                    {certificate.certificateUrl ? (
+                                        <a
+                                            href={certificate.certificateUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white hover:opacity-90 transition-opacity"
+                                        >
+                                            <Download className="w-4 h-4" />
+                                            Download
+                                        </a>
+                                    ) : (
+                                        <span className="text-xs text-gray-500">Available for verification</span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </motion.div>
             </div>
         </div>

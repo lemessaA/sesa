@@ -27,6 +27,7 @@ import {
     Maximize2,
     Minimize2
 } from 'lucide-react';
+import apiService from '../../utils/api';
 
 interface ScreenshotReview {
     id: string;
@@ -62,6 +63,33 @@ interface ScreenshotReview {
     createdAt: Date;
 }
 
+const mapScreenshot = (item: any): ScreenshotReview => ({
+    id: item._id,
+    studentId: item.studentId?._id || '',
+    studentName: item.studentId?.name || 'Student',
+    studentEmail: item.studentId?.email || '',
+    studentAvatar: item.studentId?.profileImage,
+    courseId: item.courseId?._id || '',
+    courseTitle: item.courseId?.title || 'Course',
+    lessonId: item.lessonId?._id || '',
+    lessonTitle: item.lessonId?.title || 'Lesson',
+    imageUrl: apiService.videoWorkflow.getUploadUrl('screenshots', (item.imageUrl || '').split('/').pop() || ''),
+    thumbnailUrl: undefined,
+    fileSize: item.fileSize || 0,
+    dimensions: item.dimensions || { width: 0, height: 0 },
+    uploadContext: item.uploadContext || { timestamp: 0, deviceInfo: 'Unknown', browser: 'Unknown' },
+    adminReview: item.adminReview ? {
+        reviewedBy: item.adminReview.reviewedBy || 'Admin',
+        reviewedAt: new Date(item.adminReview.reviewedAt),
+        approved: !!item.adminReview.approved,
+        feedback: item.adminReview.feedback,
+        flagged: !!item.adminReview.flagged,
+        flagReason: item.adminReview.flagReason
+    } : undefined,
+    status: item.status || 'uploaded',
+    createdAt: new Date(item.createdAt),
+});
+
 const ScreenshotReview: React.FC = () => {
     const [screenshots, setScreenshots] = useState<ScreenshotReview[]>([]);
     const [selectedScreenshot, setSelectedScreenshot] = useState<ScreenshotReview | null>(null);
@@ -74,97 +102,20 @@ const ScreenshotReview: React.FC = () => {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showOriginal, setShowOriginal] = useState(false);
 
-    // Mock data - in production, fetch from API
     useEffect(() => {
-        const mockScreenshots: ScreenshotReview[] = [
-            {
-                id: '1',
-                studentId: 'student1',
-                studentName: 'Alice Johnson',
-                studentEmail: 'alice.j@example.com',
-                studentAvatar: 'https://via.placeholder.com/50?text=AJ',
-                courseId: 'course1',
-                courseTitle: 'Advanced React Development',
-                lessonId: 'lesson2',
-                lessonTitle: 'Advanced State Management',
-                imageUrl: 'https://picsum.photos/seed/screenshot1/1920/1080.jpg',
-                thumbnailUrl: 'https://picsum.photos/seed/screenshot1/400/225.jpg',
-                fileSize: 2048000, // 2MB
-                dimensions: {
-                    width: 1920,
-                    height: 1080
-                },
-                uploadContext: {
-                    timestamp: 1200, // 20 minutes into video
-                    deviceInfo: 'Windows',
-                    browser: 'Chrome'
-                },
-                status: 'uploaded',
-                createdAt: new Date('2024-03-15T16:30:00')
-            },
-            {
-                id: '2',
-                studentId: 'student2',
-                studentName: 'Bob Smith',
-                studentEmail: 'bob.smith@example.com',
-                studentAvatar: 'https://via.placeholder.com/50?text=BS',
-                courseId: 'course1',
-                courseTitle: 'Advanced React Development',
-                lessonId: 'lesson3',
-                lessonTitle: 'Performance Optimization',
-                imageUrl: 'https://picsum.photos/seed/screenshot2/1920/1080.jpg',
-                thumbnailUrl: 'https://picsum.photos/seed/screenshot2/400/225.jpg',
-                fileSize: 1536000, // 1.5MB
-                dimensions: {
-                    width: 1920,
-                    height: 1080
-                },
-                uploadContext: {
-                    timestamp: 1800, // 30 minutes into video
-                    deviceInfo: 'Mac',
-                    browser: 'Safari'
-                },
-                status: 'uploaded',
-                createdAt: new Date('2024-03-15T17:45:00')
-            },
-            {
-                id: '3',
-                studentId: 'student3',
-                studentName: 'Carol White',
-                studentEmail: 'carol.w@example.com',
-                studentAvatar: 'https://via.placeholder.com/50?text=CW',
-                courseId: 'course2',
-                courseTitle: 'Node.js Masterclass',
-                lessonId: 'lesson1',
-                lessonTitle: 'Node.js Fundamentals',
-                imageUrl: 'https://picsum.photos/seed/screenshot3/1920/1080.jpg',
-                thumbnailUrl: 'https://picsum.photos/seed/screenshot3/400/225.jpg',
-                fileSize: 3072000, // 3MB
-                dimensions: {
-                    width: 1920,
-                    height: 1080
-                },
-                uploadContext: {
-                    timestamp: 900, // 15 minutes into video
-                    deviceInfo: 'iPhone',
-                    browser: 'Safari'
-                },
-                adminReview: {
-                    reviewedBy: 'Admin User',
-                    reviewedAt: new Date('2024-03-14T14:20:00'),
-                    approved: true,
-                    feedback: 'Great screenshot showing progress!',
-                    flagged: false
-                },
-                status: 'approved',
-                createdAt: new Date('2024-03-14T14:15:00')
+        const load = async () => {
+            try {
+                setLoading(true);
+                const response = await apiService.videoWorkflow.getScreenshotsForReview({ page: 1, limit: 50 });
+                setScreenshots((response.data?.data || []).map(mapScreenshot));
+            } catch (error) {
+                console.error('Failed to fetch screenshots for review:', error);
+                setScreenshots([]);
+            } finally {
+                setLoading(false);
             }
-        ];
-
-        setTimeout(() => {
-            setScreenshots(mockScreenshots);
-            setLoading(false);
-        }, 1000);
+        };
+        load();
     }, []);
 
     const handleScreenshotSelect = (screenshot: ScreenshotReview) => {
@@ -180,32 +131,23 @@ const ScreenshotReview: React.FC = () => {
         if (!selectedScreenshot || !reviewAction) return;
 
         setIsProcessing(true);
-
-        // Simulate API call
-        setTimeout(() => {
-            const updatedScreenshot = {
-                ...selectedScreenshot,
-                status: reviewAction === 'approve' ? 'approved' : reviewAction === 'flag' ? 'flagged' : 'reviewed',
-                adminReview: {
-                    reviewedBy: 'Admin User',
-                    reviewedAt: new Date(),
-                    approved: reviewAction === 'approve',
-                    feedback: reviewAction === 'flag' ? flagReason : feedback,
-                    flagged: reviewAction === 'flag',
-                    flagReason: reviewAction === 'flag' ? flagReason : undefined
-                }
-            };
-
-            setScreenshots(prev => prev.map(s => 
-                s.id === selectedScreenshot.id ? updatedScreenshot : s
-            ));
-
-            setSelectedScreenshot(updatedScreenshot);
+        try {
+            await apiService.videoWorkflow.reviewScreenshot(selectedScreenshot.id, {
+                approved: reviewAction === 'approve',
+                feedback: reviewAction === 'flag' ? flagReason : feedback,
+                flagged: reviewAction === 'flag',
+                flagReason: reviewAction === 'flag' ? flagReason : undefined
+            });
+            setScreenshots((prev) => prev.filter((s) => s.id !== selectedScreenshot.id));
+            setSelectedScreenshot(null);
             setReviewAction(null);
             setFeedback('');
             setFlagReason('');
+        } catch (error) {
+            console.error('Failed to review screenshot:', error);
+        } finally {
             setIsProcessing(false);
-        }, 2000);
+        }
     };
 
     const handleZoomIn = () => {
@@ -243,7 +185,7 @@ const ScreenshotReview: React.FC = () => {
             'Windows': <Monitor className="w-4 h-4" />,
             'Mac': <Monitor className="w-4 h-4" />,
             'iPhone': <Smartphone className="w-4 h-4" />,
-            'iPad': <Tablet className="w-4 h-4" />,
+            'iPad': <Monitor className="w-4 h-4" />,
             'Android': <Smartphone className="w-4 h-4" />
         };
         return icons[device as keyof typeof icons] || <Monitor className="w-4 h-4" />;

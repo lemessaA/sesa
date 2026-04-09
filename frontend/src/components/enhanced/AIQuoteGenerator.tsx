@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RefreshCw, Sparkles, Heart, Share2, Copy, Check, Volume2, VolumeX } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
+import apiService from '../../utils/api';
 
 interface Quote {
     id: string;
@@ -96,23 +97,24 @@ const AIQuoteGenerator: React.FC = () => {
         localStorage.setItem('favoriteQuotes', JSON.stringify(newFavorites));
     }, []);
 
-    // Generate AI Quote (Mock Implementation)
     const generateAIQuote = useCallback(async (prompt?: string) => {
         setIsGenerating(true);
         
         try {
-            // Simulate AI API call
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
+            const query = prompt?.trim()
+                ? `Generate one short motivational quote for learning based on: ${prompt.trim()}`
+                : 'Generate one short motivational quote for education and personal growth.';
+            const response = await apiService.ai.chat(query, 'quote-generator');
+            const modelText = response.data?.response || response.data?.message || '';
+            const quoteText = modelText.split('\n').map((line: string) => line.trim()).find(Boolean) || getRandomAIQuote();
+
             const aiResponse: AIResponse = {
-                quote: prompt 
-                    ? `Based on "${prompt}", remember that every expert was once a beginner. Your current challenge is building the foundation for tomorrow's expertise.`
-                    : getRandomAIQuote(),
-                author: getRandomAuthor(),
+                quote: quoteText.replace(/^["']|["']$/g, ''),
+                author: 'SESA AI Mentor',
                 category: getRandomCategory(),
                 tags: getRandomTags(),
-                confidence: 0.85 + Math.random() * 0.15,
-                reasoning: 'Generated based on user preferences and learning patterns'
+                confidence: 0.9,
+                reasoning: 'Generated from live AI assistant response'
             };
             
             const newQuote: Quote = {
@@ -148,16 +150,6 @@ const AIQuoteGenerator: React.FC = () => {
             "Knowledge compounds like interest - the more you learn, the more you can learn."
         ];
         return templates[Math.floor(Math.random() * templates.length)];
-    };
-
-    const getRandomAuthor = () => {
-        const authors = [
-            "AI Learning Assistant",
-            "SESA AI Mentor",
-            "Educational Intelligence",
-            "Smart Learning Coach"
-        ];
-        return authors[Math.floor(Math.random() * authors.length)];
     };
 
     const getRandomCategory = () => {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, Users, Brain, AlertTriangle, Target, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
+import apiService from '../utils/api';
 
 interface LearningPattern {
     userId: string;
@@ -40,39 +41,21 @@ const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({ courseId, userRol
             setLoading(true);
             
             const [patternsRes, insightsRes, metricsRes, predictionsRes] = await Promise.all([
-                fetch(`/api/advanced-analytics/learning-patterns${courseId ? `?courseId=${courseId}` : ''}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-                }),
-                courseId ? fetch(`/api/advanced-analytics/course-insights/${courseId}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-                }) : Promise.resolve(null),
-                fetch('/api/advanced-analytics/realtime', {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-                }),
-                fetch('/api/advanced-analytics/predictions?type=engagement', {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-                })
+                apiService.advancedAnalytics.getLearningPatterns(courseId),
+                courseId ? apiService.advancedAnalytics.getCourseInsights(courseId) : Promise.resolve(null),
+                apiService.advancedAnalytics.getRealtime(),
+                apiService.advancedAnalytics.getPredictions('engagement'),
             ]);
 
-            if (patternsRes.ok) {
-                const patternsData = await patternsRes.json();
-                setLearningPatterns(patternsData.patterns);
+            setLearningPatterns(patternsRes.data?.patterns || []);
+
+            if (insightsRes?.data) {
+                setCourseInsights(insightsRes.data);
             }
 
-            if (insightsRes && insightsRes.ok) {
-                const insightsData = await insightsRes.json();
-                setCourseInsights(insightsData);
-            }
+            setRealtimeMetrics(metricsRes.data?.metrics || null);
 
-            if (metricsRes.ok) {
-                const metricsData = await metricsRes.json();
-                setRealtimeMetrics(metricsData.metrics);
-            }
-
-            if (predictionsRes.ok) {
-                const predictionsData = await predictionsRes.json();
-                setPredictions(predictionsData.predictions);
-            }
+            setPredictions(predictionsRes.data?.predictions || null);
 
         } catch (error) {
             console.error('Error fetching analytics data:', error);
@@ -83,14 +66,8 @@ const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({ courseId, userRol
 
     const fetchRealtimeMetrics = async () => {
         try {
-            const response = await fetch('/api/advanced-analytics/realtime', {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                setRealtimeMetrics(data.metrics);
-            }
+            const response = await apiService.advancedAnalytics.getRealtime();
+            setRealtimeMetrics(response.data?.metrics || null);
         } catch (error) {
             console.error('Error fetching realtime metrics:', error);
         }

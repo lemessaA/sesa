@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Send, User, Trash2, Pin, Lock, Flag, Reply } from 'lucide-react';
-import axios from 'axios';
 import { showSuccess, showError } from '../../utils/toast';
+import apiService from '../../utils/api';
 
 interface Post {
     _id: string;
@@ -48,7 +48,7 @@ const CourseForum: React.FC<CourseForumProps> = ({ courseId, currentUserId }) =>
 
     const fetchThreads = async () => {
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL}/forum/course/${courseId}`);
+            const res = await apiService.forums.getCourseThreads(courseId);
             setThreads(res.data);
         } catch (error) {
             console.error('Failed to fetch threads:', error);
@@ -62,7 +62,7 @@ const CourseForum: React.FC<CourseForumProps> = ({ courseId, currentUserId }) =>
         if (!newThreadTitle.trim() || !newThreadContent.trim()) return;
 
         try {
-            const res = await axios.post(`${import.meta.env.VITE_API_URL}/forum/threads`, {
+            const res = await apiService.forums.createThread({
                 title: newThreadTitle,
                 content: newThreadContent,
                 courseId
@@ -81,7 +81,7 @@ const CourseForum: React.FC<CourseForumProps> = ({ courseId, currentUserId }) =>
         if (!newPostContent.trim()) return;
 
         try {
-            const res = await axios.post(`${import.meta.env.VITE_API_URL}/forum/threads/${threadId}/posts`, {
+            const res = await apiService.forums.addPost(threadId, {
                 content: newPostContent
             });
             

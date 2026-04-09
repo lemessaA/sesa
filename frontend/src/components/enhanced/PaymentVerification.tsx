@@ -22,6 +22,7 @@ import {
     FileText,
     Zap
 } from 'lucide-react';
+import apiService from '../../utils/api';
 
 interface PaymentTransaction {
     id: string;
@@ -56,6 +57,34 @@ interface PaymentTransaction {
     };
 }
 
+const mapTransaction = (item: any): PaymentTransaction => ({
+    id: item._id || item.id,
+    studentId: item.studentId || 'current-user',
+    studentName: item.studentName || 'Current Student',
+    studentEmail: item.studentEmail || '',
+    studentAvatar: item.studentAvatar,
+    courseId: item.courseId || '',
+    courseTitle: item.courseTitle || 'Course',
+    lessonId: item.lessonId || '',
+    lessonTitle: item.lessonTitle || 'Lesson',
+    amount: Number(item.amount || 0),
+    currency: item.currency || 'USD',
+    method: item.method || 'manual',
+    status: item.status || 'pending',
+    transactionId: item.transactionId,
+    paymentIntentId: item.paymentIntentId,
+    createdAt: new Date(item.createdAt || Date.now()),
+    completedAt: item.completedAt ? new Date(item.completedAt) : undefined,
+    metadata: {
+        ipAddress: item.metadata?.ipAddress || 'N/A',
+        userAgent: item.metadata?.userAgent || 'N/A',
+        device: item.metadata?.device || 'Unknown',
+        browser: item.metadata?.browser || 'Unknown',
+        location: item.metadata?.location,
+    },
+    lessonPreview: item.lessonPreview,
+});
+
 const PaymentVerification: React.FC = () => {
     const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
     const [selectedTransaction, setSelectedTransaction] = useState<PaymentTransaction | null>(null);
@@ -65,101 +94,23 @@ const PaymentVerification: React.FC = () => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
 
-    // Mock data - in production, fetch from API
     useEffect(() => {
-        const mockTransactions: PaymentTransaction[] = [
-            {
-                id: '1',
-                studentId: 'student1',
-                studentName: 'Alice Johnson',
-                studentEmail: 'alice.j@example.com',
-                studentAvatar: 'https://via.placeholder.com/50?text=AJ',
-                courseId: 'course1',
-                courseTitle: 'Advanced React Development',
-                lessonId: 'lesson2',
-                lessonTitle: 'Advanced State Management',
-                amount: 9.99,
-                currency: 'USD',
-                method: 'stripe',
-                status: 'pending',
-                transactionId: 'txn_123456789',
-                paymentIntentId: 'pi_123456789',
-                createdAt: new Date('2024-03-15T14:30:00'),
-                metadata: {
-                    ipAddress: '192.168.1.100',
-                    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    device: 'Windows',
-                    browser: 'Chrome',
-                    location: 'New York, US'
-                },
-                lessonPreview: {
-                    videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
-                    thumbnailUrl: 'https://via.placeholder.com/640x360?text=Advanced+State',
-                    duration: 2400,
-                    description: 'Deep dive into Redux, Context API, and advanced state patterns'
-                }
-            },
-            {
-                id: '2',
-                studentId: 'student2',
-                studentName: 'Bob Smith',
-                studentEmail: 'bob.smith@example.com',
-                studentAvatar: 'https://via.placeholder.com/50?text=BS',
-                courseId: 'course1',
-                courseTitle: 'Advanced React Development',
-                lessonId: 'lesson3',
-                lessonTitle: 'Performance Optimization',
-                amount: 9.99,
-                currency: 'USD',
-                method: 'paypal',
-                status: 'pending',
-                transactionId: 'txn_987654321',
-                createdAt: new Date('2024-03-15T15:45:00'),
-                metadata: {
-                    ipAddress: '192.168.1.101',
-                    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-                    device: 'Mac',
-                    browser: 'Safari',
-                    location: 'Los Angeles, US'
-                },
-                lessonPreview: {
-                    videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
-                    thumbnailUrl: 'https://via.placeholder.com/640x360?text=Performance+Opt',
-                    duration: 1800,
-                    description: 'Learn React performance optimization techniques'
-                }
-            },
-            {
-                id: '3',
-                studentId: 'student3',
-                studentName: 'Carol White',
-                studentEmail: 'carol.w@example.com',
-                studentAvatar: 'https://via.placeholder.com/50?text=CW',
-                courseId: 'course2',
-                courseTitle: 'Node.js Masterclass',
-                lessonId: 'lesson1',
-                lessonTitle: 'Node.js Fundamentals',
-                amount: 14.99,
-                currency: 'USD',
-                method: 'manual',
-                status: 'completed',
-                transactionId: 'manual_456789',
-                createdAt: new Date('2024-03-14T10:15:00'),
-                completedAt: new Date('2024-03-14T10:20:00'),
-                metadata: {
-                    ipAddress: '192.168.1.102',
-                    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)',
-                    device: 'iPhone',
-                    browser: 'Safari',
-                    location: 'Chicago, US'
-                }
+        const load = async () => {
+            try {
+                setLoading(true);
+                const response = await apiService.payments.getHistory();
+                const list = Array.isArray(response.data?.payments)
+                    ? response.data.payments
+                    : (Array.isArray(response.data) ? response.data : []);
+                setTransactions(list.map(mapTransaction));
+            } catch (error) {
+                console.error('Failed to load payment history:', error);
+                setTransactions([]);
+            } finally {
+                setLoading(false);
             }
-        ];
-
-        setTimeout(() => {
-            setTransactions(mockTransactions);
-            setLoading(false);
-        }, 1000);
+        };
+        load();
     }, []);
 
     const handleTransactionSelect = (transaction: PaymentTransaction) => {
@@ -232,7 +183,7 @@ const PaymentVerification: React.FC = () => {
             'Windows': <Monitor className="w-4 h-4" />,
             'Mac': <Monitor className="w-4 h-4" />,
             'iPhone': <Smartphone className="w-4 h-4" />,
-            'iPad': <Tablet className="w-4 h-4" />,
+            'iPad': <Monitor className="w-4 h-4" />,
             'Android': <Smartphone className="w-4 h-4" />
         };
         return icons[device as keyof typeof icons] || <Globe className="w-4 h-4" />;
@@ -426,7 +377,7 @@ const PaymentVerification: React.FC = () => {
                                                 onClick={() => setShowPreview(!showPreview)}
                                                 className="p-2 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/30 transition-colors"
                                             >
-                                                {showPreview ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                                <Eye className="w-5 h-5" />
                                             </button>
                                         </div>
                                         

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Bot, User, BookOpen, Brain, Lightbulb, Target } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import apiService from '../utils/api';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -44,21 +45,13 @@ const AITutor: React.FC<AITutorProps> = ({ courseId, courseTitle, onClose }) => 
     const startTutorSession = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch('/api/ai-tutor/session/start', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    courseId,
-                    learningStyle,
-                    difficultyLevel
-                })
+            const response = await apiService.aiTutor.startSession({
+                courseId,
+                learningStyle,
+                difficultyLevel
             });
-
-            if (response.ok) {
-                const data = await response.json();
+            if (response.data) {
+                const data = response.data;
                 setSessionId(data.sessionId);
                 setMessages([{
                     role: 'assistant',
@@ -87,21 +80,13 @@ const AITutor: React.FC<AITutorProps> = ({ courseId, courseTitle, onClose }) => 
         setIsLoading(true);
 
         try {
-            const response = await fetch('/api/ai-tutor/session/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    sessionId,
-                    message: inputMessage,
-                    includeVisuals: learningStyle === 'visual'
-                })
+            const response = await apiService.aiTutor.chat({
+                sessionId,
+                message: inputMessage,
+                includeVisuals: learningStyle === 'visual'
             });
-
-            if (response.ok) {
-                const data = await response.json();
+            if (response.data) {
+                const data = response.data;
                 const assistantMessage: Message = {
                     role: 'assistant',
                     content: data.response,
@@ -121,21 +106,13 @@ const AITutor: React.FC<AITutorProps> = ({ courseId, courseTitle, onClose }) => 
 
         try {
             setIsLoading(true);
-            const response = await fetch('/api/ai-tutor/session/generate-quiz', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    sessionId,
-                    questionCount: 5,
-                    difficulty: difficultyLevel
-                })
+            const response = await apiService.aiTutor.generateQuiz({
+                sessionId,
+                questionCount: 5,
+                difficulty: difficultyLevel
             });
-
-            if (response.ok) {
-                const data = await response.json();
+            if (response.data) {
+                const data = response.data;
                 const quizMessage: Message = {
                     role: 'assistant',
                     content: `I've generated a quiz based on our discussion! Here are ${data.quiz.questions.length} questions to test your understanding:\n\n${data.quiz.questions.map((q: any, i: number) => `${i + 1}. ${q.question}`).join('\n\n')}`,
@@ -153,21 +130,13 @@ const AITutor: React.FC<AITutorProps> = ({ courseId, courseTitle, onClose }) => 
     const getStudyPlan = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch('/api/ai-tutor/study-plan', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    courseId,
-                    timeAvailable: 5, // 5 hours per week
-                    goals: 'Complete course and master key concepts'
-                })
+            const response = await apiService.aiTutor.studyPlan({
+                courseId,
+                timeAvailable: 5,
+                goals: 'Complete course and master key concepts'
             });
-
-            if (response.ok) {
-                const data = await response.json();
+            if (response.data) {
+                const data = response.data;
                 const planMessage: Message = {
                     role: 'assistant',
                     content: `Here's your personalized study plan for "${courseTitle}":\n\n${data.studyPlan.weeklyPlan?.map((week: any) => `Week ${week.week}: ${week.focus} (${week.hours} hours)\nGoals: ${week.goals?.join(', ')}`).join('\n\n')}`,
@@ -186,17 +155,9 @@ const AITutor: React.FC<AITutorProps> = ({ courseId, courseTitle, onClose }) => 
         if (!sessionId) return;
 
         try {
-            const response = await fetch('/api/ai-tutor/session/end', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({ sessionId })
-            });
-
-            if (response.ok) {
-                const data = await response.json();
+            const response = await apiService.aiTutor.endSession({ sessionId });
+            if (response.data) {
+                const data = response.data;
                 console.log('Session ended:', data.summary);
             }
         } catch (error) {

@@ -5,6 +5,7 @@ import DashboardLayout from './DashboardLayout';
 import TeacherEvaluation from '../student/TeacherEvaluation';
 import apiService from '../../utils/api';
 import GamificationStats from './GamificationStats';
+import AnnouncementBanner from '../AnnouncementBanner';
 
 interface StudentDashboardProps {
     user: any;
@@ -68,7 +69,13 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
     };
 
     return (
-        <div className="pb-12">
+        <div className="overflow-x-clip pb-12">
+            <div className="mx-3 mt-2 flex justify-end sm:mx-4 md:mx-8">
+                <div className="w-full max-w-md">
+                    <AnnouncementBanner mode="cards" audience="student" title="Student Notifications" />
+                </div>
+            </div>
+
             {/* New Dynamic Gamification Stats */}
             <div className="px-4 md:px-8">
                 <GamificationStats />
@@ -82,10 +89,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.15 }}
-                    className="mx-4 md:mx-8 mt-6 rounded-[2.5rem] border border-slate-700/50 bg-[#112240]/40 backdrop-blur-xl p-8"
+                    className="mx-3 mt-6 rounded-[2rem] border border-slate-700/50 bg-[#112240]/40 p-4 backdrop-blur-xl sm:mx-4 sm:p-6 md:mx-8 md:rounded-[2.5rem] md:p-8"
                 >
                     <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-6 bg-slate-800/50 w-fit px-4 py-1.5 rounded-full">Course Momentum</h2>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 sm:gap-6">
                         {approvedCourses.slice(0, 10).map((c, i) => {
                             const ringColor = i % 3 === 0 ? '#06b6d4' : i % 3 === 1 ? '#a855f7' : '#10b981';
                             return (
@@ -136,9 +143,9 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.25 }}
-                    className="mx-4 md:mx-8 mt-6 rounded-[2.5rem] border border-slate-700/50 bg-[#112240]/40 backdrop-blur-xl p-8"
+                    className="mx-3 mt-6 rounded-[2rem] border border-slate-700/50 bg-[#112240]/40 p-4 backdrop-blur-xl sm:mx-4 sm:p-6 md:mx-8 md:rounded-[2.5rem] md:p-8"
                 >
-                    <div className="flex items-center justify-between mb-8">
+                    <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:mb-8 sm:flex-row sm:items-center">
                         <div>
                             <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-2 bg-slate-800/50 w-fit px-4 py-1.5 rounded-full">Gradebook Archive</h2>
                             <h3 className="text-2xl font-black text-white italic">Assessment <span className="text-blue-400">Deep Dive</span></h3>
@@ -149,7 +156,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
                     </div>
 
                     <div className="overflow-x-auto rounded-3xl border border-slate-700/30 bg-slate-900/60 shadow-inner">
-                        <table className="w-full text-left border-collapse">
+                        <table className="min-w-[760px] w-full border-collapse text-left">
                             <thead>
                                 <tr className="bg-slate-800/50">
                                     <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-700/50">Subject / Course</th>

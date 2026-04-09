@@ -2,7 +2,11 @@
 export const config = {
   // API Configuration
   api: {
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
+    baseURL: (() => {
+      const raw = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
+      if (!raw) return 'http://localhost:5000/api';
+      return raw.endsWith('/api') ? raw : `${raw}/api`;
+    })(),
     timeout: 10000,
     retryAttempts: 3,
   },

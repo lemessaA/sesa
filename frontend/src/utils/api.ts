@@ -2,18 +2,32 @@ import axios from 'axios';
 
 // API Configuration
 // Ensure the base URL always has the /api prefix for consistency
-const getApiBaseUrl = () => {
-  const url = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
-  return url.endsWith('/api') ? url : `${url}/api`;
+export const getApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL || '';
+  
+  // In development, if no env var, default to localhost:5000
+  if (!envUrl && import.meta.env.DEV) {
+    return 'http://localhost:5000/api';
+  }
+
+  // Ensure url ends with /api but not with //api
+  let cleanUrl = envUrl.trim().replace(/\/+$/, '');
+  
+  if (!cleanUrl) {
+    console.warn('[API] VITE_API_URL is not set. API calls may fail.');
+    return '/api'; // Relative fallback
+  }
+
+  return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
 };
 
-const API_BASE_URL = getApiBaseUrl();
-console.log(`[API] Base URL configured as: ${API_BASE_URL}`);
+export const API_BASE_URL = getApiBaseUrl();
 
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -63,15 +77,20 @@ api.interceptors.response.use(
           console.error('Resource not found:', error.response?.data?.message);
           break;
         case 500:
-          console.error('Server error:', error.response?.data?.message);
+          console.error('❌ [API] Server Error:', error.response?.data?.message || 'Internal Server Error');
+          break;
+        case 503:
+          const dbMsg = error.response?.data?.message || 'Database connection error';
+          console.error(`🛑 [API] Service Unavailable (503): ${dbMsg}`);
+          console.error('Tip: Make sure MongoDB is running and access is allowed in your DB dashboard (Whitelist IP).');
           break;
         default:
-          console.error('API error:', error.response?.data?.message);
+          console.error(`⚠️ [API] Error (${error.response.status}):`, error.response?.data?.message || 'Unknown error');
       }
     } else if (error.request) {
-      console.error('Network error:', error.message);
+      console.error('🔌 [API] Network Error: No response received. Is the backend server running?', error.message);
     } else {
-      console.error('Error:', error.message);
+      console.error('🧨 [API] Request Error:', error.message);
     }
 
     return Promise.reject(error);
@@ -227,6 +246,16 @@ export const apiService = {
       api.get(`/evaluations/instructor/${instructorId}`),
   },
 
+  // Forum endpoints
+  forums: {
+    getCourseThreads: (courseId: string) =>
+      api.get(`/forums/course/${courseId}`),
+    createThread: (data: { title: string; content: string; courseId: string }) =>
+      api.post('/forums/threads', data),
+    addPost: (threadId: string, data: { content: string }) =>
+      api.post(`/forums/threads/${threadId}/posts`, data),
+  },
+
   // Video workflow & lesson access endpoints
   videoWorkflow: {
     // Lessons visible to a student for a given course
@@ -294,8 +323,53 @@ export const apiService = {
       api.post('/ai/summarize', { text, maxSentences }),
   },
 
+  // AI tutor endpoints
+  aiTutor: {
+    startSession: (data: { courseId: string; learningStyle: string; difficultyLevel: string }) =>
+      api.post('/ai-tutor/session/start', data),
+    chat: (data: { sessionId: string; message: string; includeVisuals?: boolean }) =>
+      api.post('/ai-tutor/session/chat', data),
+    generateQuiz: (data: { sessionId: string; questionCount?: number; difficulty?: string }) =>
+      api.post('/ai-tutor/session/generate-quiz', data),
+    studyPlan: (data: { courseId: string; timeAvailable: number; goals: string }) =>
+      api.post('/ai-tutor/study-plan', data),
+    endSession: (data: { sessionId: string }) =>
+      api.post('/ai-tutor/session/end', data),
+  },
+
+  // Collaboration endpoints
+  collaboration: {
+    joinRoom: (roomId: string) =>
+      api.post(`/collaboration/rooms/${roomId}/join`),
+    leaveRoom: (roomId: string) =>
+      api.post(`/collaboration/rooms/${roomId}/leave`),
+    sendMessage: (roomId: string, data: { message: string; type: string }) =>
+      api.post(`/collaboration/rooms/${roomId}/messages`, data),
+    updateWhiteboard: (roomId: string, data: { elements: any[] }) =>
+      api.put(`/collaboration/rooms/${roomId}/whiteboard`, data),
+  },
+
+  // Advanced analytics endpoints
+  advancedAnalytics: {
+    getLearningPatterns: (courseId?: string) =>
+      api.get('/advanced-analytics/learning-patterns', { params: courseId ? { courseId } : undefined }),
+    getCourseInsights: (courseId: string) =>
+      api.get(`/advanced-analytics/course-insights/${courseId}`),
+    getRealtime: () =>
+      api.get('/advanced-analytics/realtime'),
+    getPredictions: (type = 'engagement') =>
+      api.get('/advanced-analytics/predictions', { params: { type } }),
+  },
+
+  // Certificate endpoints
+  certificates: {
+    getMyCertificates: () =>
+      api.get('/certificates/my-certificates'),
+  },
+
   // Utility function to check API health
   healthCheck: () => api.get('/health'),
 };
 
+export const apiClient = api;
 export default apiService;

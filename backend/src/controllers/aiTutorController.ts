@@ -1,15 +1,22 @@
 import type { Response } from 'express';
 import type { AuthRequest } from '../middleware/auth.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import OpenAI from 'openai';
 import Course from '../models/Course.js';
 import User from '../models/User.js';
 import Progress from '../models/Progress.js';
 import logger from '../utils/logger.js';
 
 // Initialize AI clients
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
+
+const ensureGeminiAvailable = (res: Response): boolean => {
+    if (genAI) return true;
+    res.status(503).json({
+        error: 'AI tutor is temporarily unavailable. Set GEMINI_API_KEY in backend/.env.'
+    });
+    return false;
+};
 
 interface ChatMessage {
     role: 'user' | 'assistant' | 'system';
@@ -33,6 +40,7 @@ const activeSessions = new Map<string, LearningSession>();
 
 export const startTutorSession = async (req: AuthRequest, res: Response) => {
     try {
+        if (!ensureGeminiAvailable(res)) return;
         const { courseId, learningStyle = 'visual', difficultyLevel = 'beginner' } = req.body;
         const userId = req.user?.id;
 
@@ -111,6 +119,7 @@ export const startTutorSession = async (req: AuthRequest, res: Response) => {
 
 export const chatWithTutor = async (req: AuthRequest, res: Response) => {
     try {
+        if (!ensureGeminiAvailable(res)) return;
         const { sessionId, message, includeVisuals = false } = req.body;
         const userId = req.user?.id;
 
@@ -193,6 +202,7 @@ export const chatWithTutor = async (req: AuthRequest, res: Response) => {
 
 export const generateQuizFromChat = async (req: AuthRequest, res: Response) => {
     try {
+        if (!ensureGeminiAvailable(res)) return;
         const { sessionId, questionCount = 5, difficulty } = req.body;
         const userId = req.user?.id;
 
@@ -251,6 +261,7 @@ export const generateQuizFromChat = async (req: AuthRequest, res: Response) => {
 
 export const getPersonalizedStudyPlan = async (req: AuthRequest, res: Response) => {
     try {
+        if (!ensureGeminiAvailable(res)) return;
         const { courseId, timeAvailable, goals } = req.body;
         const userId = req.user?.id;
 
@@ -332,6 +343,7 @@ export const getPersonalizedStudyPlan = async (req: AuthRequest, res: Response) 
 
 export const endTutorSession = async (req: AuthRequest, res: Response) => {
     try {
+        if (!ensureGeminiAvailable(res)) return;
         const { sessionId } = req.body;
         const userId = req.user?.id;
 
@@ -404,6 +416,7 @@ export const endTutorSession = async (req: AuthRequest, res: Response) => {
 // Helper function to update learning insights
 async function updateLearningInsights(session: LearningSession, userMessage: string, tutorResponse: string) {
     try {
+        if (!genAI) return;
         // Analyze user message for learning patterns
         const analysisPrompt = `
         Analyze this student interaction for learning insights:

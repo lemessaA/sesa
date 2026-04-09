@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { showSuccess, showError } from '../../utils/toast';
 import axios from 'axios';
-import { CheckCircle, XCircle, Filter, BookOpen, Users, Eye, ImageIcon, ExternalLink, CreditCard } from 'lucide-react';
+import { CheckCircle, XCircle, Filter, BookOpen, Users, Eye, ImageIcon, ExternalLink, CreditCard, Maximize2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getYoutubeEmbedSrc, isLikelyDirectVideoFileUrl } from '../../utils/youtube';
 
 interface CourseApproval {
     _id: string;
@@ -29,7 +30,26 @@ const Approvals: React.FC = () => {
     const [courses, setCourses] = useState<CourseApproval[]>([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState<string>('pending');
-    const [selectedProof, setSelectedProof] = useState<string | null>(null);
+    const [selectedCoursePreview, setSelectedCoursePreview] = useState<any | null>(null);
+    const [selectedPaymentPreview, setSelectedPaymentPreview] = useState<{
+        proofUrl: string;
+        enrollmentId: string;
+        paymentId?: string;
+        studentName?: string;
+        courseTitle?: string;
+    } | null>(null);
+
+    const coursePlayerWrapRef = useRef<HTMLDivElement>(null);
+
+    const toggleCoursePlayerFullscreen = useCallback(() => {
+        const el = coursePlayerWrapRef.current;
+        if (!el) return;
+        if (document.fullscreenElement === el) {
+            void document.exitFullscreen();
+        } else {
+            void el.requestFullscreen?.();
+        }
+    }, []);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -140,18 +160,18 @@ const Approvals: React.FC = () => {
     };
 
     return (
-        <div className="p-4 md:p-8 space-y-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="min-h-screen space-y-6 overflow-x-clip bg-[#050b17] p-3 sm:p-4 md:space-y-8 md:p-8">
+            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                 <div className="flex items-center gap-3">
-                    <CheckCircle className="w-8 h-8 text-cyan-400" />
+                    <CheckCircle className="w-8 h-8 text-[#60a5fa]" />
                     <h1 className="text-3xl font-bold tracking-tight text-white">Approvals</h1>
                 </div>
 
-                <div className="flex p-1 bg-slate-800/50 border border-slate-700 rounded-xl w-fit">
+                <div className="flex w-full max-w-full overflow-x-auto rounded-xl border border-[#14305f] bg-[#0a1630] p-1 md:w-fit">
                     <button
                         onClick={() => setActiveTab('enrollments')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            activeTab === 'enrollments' ? 'bg-cyan-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                            activeTab === 'enrollments' ? 'bg-[#3b82f6] text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
                         }`}
                     >
                         <Users className="w-4 h-4" />
@@ -160,7 +180,7 @@ const Approvals: React.FC = () => {
                     <button
                         onClick={() => setActiveTab('courses')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            activeTab === 'courses' ? 'bg-cyan-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                            activeTab === 'courses' ? 'bg-[#3b82f6] text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
                         }`}
                     >
                         <BookOpen className="w-4 h-4" />
@@ -169,21 +189,21 @@ const Approvals: React.FC = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                 {[
                     { label: 'Total Requests', value: stats.total, color: 'text-white' },
                     { label: 'Pending', value: stats.pending, color: 'text-amber-400' },
                     { label: 'Approved', value: stats.approved, color: 'text-emerald-400' },
                     { label: 'Rejected', value: stats.rejected, color: 'text-rose-400' },
                 ].map((stat, i) => (
-                    <div key={i} className="bg-slate-800/40 border border-slate-700 rounded-2xl p-6">
-                        <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+                    <div key={i} className="rounded-2xl border border-[#14305f] bg-[#0a1630] p-4 sm:p-6">
+                        <p className={`text-2xl font-bold sm:text-3xl ${stat.color}`}>{stat.value}</p>
                         <p className="text-sm text-slate-400 mt-1">{stat.label}</p>
                     </div>
                 ))}
             </div>
 
-            <div className="flex items-center gap-3 bg-slate-800/40 border border-slate-700 rounded-xl p-4 w-fit">
+            <div className="flex items-center gap-3 bg-[#0a1630] border border-[#14305f] rounded-xl p-4 w-fit">
                 <Filter className="w-5 h-5 text-slate-400" />
                 <select
                     value={statusFilter}
@@ -197,7 +217,7 @@ const Approvals: React.FC = () => {
                 </select>
             </div>
 
-            <div className="bg-slate-800/40 border border-slate-700 rounded-2xl overflow-hidden">
+            <div className="overflow-hidden rounded-2xl border border-[#14305f] bg-[#0a1630]">
                 {loading ? (
                     <div className="text-center py-12 text-slate-400 animate-pulse">Scanning records...</div>
                 ) : filteredItems.length === 0 ? (
@@ -206,7 +226,7 @@ const Approvals: React.FC = () => {
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left">
+                        <table className="min-w-[980px] w-full text-left">
                             <thead className="bg-slate-900/50 border-b border-slate-700">
                                 <tr>
                                     <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
@@ -230,14 +250,17 @@ const Approvals: React.FC = () => {
                                     const subtitle1 = isEnrollment ? data.user?.email : (data.category?.name || 'Uncategorized');
                                     const title2 = isEnrollment ? data.course?.title : data.instructor?.name;
                                     const dateField = isEnrollment ? data.requestedAt : data.createdAt;
+                                    const previewVideoUrl = !isEnrollment
+                                        ? (data.previewVideoUrl || data.lessons?.[0]?.videoUrl || '')
+                                        : '';
 
                                     return (
                                         <tr key={index} className="hover:bg-slate-800/60 transition-colors group">
-                                            <td className="px-6 py-4 min-w-[200px]">
+                                            <td className="min-w-[200px] px-4 py-4 sm:px-6">
                                                 <p className="font-semibold text-slate-200">{title1}</p>
                                                 <p className="text-sm text-slate-400 mt-0.5">{subtitle1}</p>
                                             </td>
-                                            <td className="px-6 py-4 text-slate-300">
+                                            <td className="px-4 py-4 text-slate-300 sm:px-6">
                                                 <div className="font-medium">{title2}</div>
                                                 {isEnrollment && data.course?.price && (
                                                     <div className="flex items-center gap-2 mt-1">
@@ -245,7 +268,7 @@ const Approvals: React.FC = () => {
                                                     </div>
                                                 )}
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-4 py-4 sm:px-6">
                                                 <div className="flex flex-col gap-2">
                                                     <div className="flex items-center gap-2">
                                                         {data.status === 'approved' && (
@@ -270,34 +293,59 @@ const Approvals: React.FC = () => {
                                                                     ID: {paymentMeta.transactionId}
                                                                 </div>
                                                             )}
-                                                            {paymentMeta.proofUrl && (
-                                                                <button 
-                                                                    onClick={() => setSelectedProof(paymentMeta.proofUrl)}
-                                                                    className="flex items-center gap-2 text-xs text-blue-400 hover:text-blue-300 transition-colors w-fit pt-1 font-bold"
+                                                            {item.payment?.receiptImage && (
+                                                                <button
+                                                                    onClick={() =>
+                                                                        setSelectedPaymentPreview({
+                                                                            proofUrl: item.payment.receiptImage,
+                                                                            enrollmentId: data._id,
+                                                                            paymentId: item.payment?._id,
+                                                                            studentName: data.user?.name,
+                                                                            courseTitle: data.course?.title,
+                                                                        })
+                                                                    }
+                                                                    className="mt-1 flex items-center gap-2 text-xs text-blue-400 hover:text-blue-300 transition-colors w-fit font-bold"
                                                                 >
-                                                                    <ImageIcon className="w-3.5 h-3.5" />
-                                                                    View Proof
+                                                                    <img
+                                                                        src={item.payment.receiptImage}
+                                                                        alt="Receipt thumbnail"
+                                                                        className="h-10 w-14 rounded-md border border-[#1d3f7a] object-cover"
+                                                                    />
+                                                                    <span className="inline-flex items-center gap-1">
+                                                                        <ImageIcon className="w-3.5 h-3.5" />
+                                                                        Preview Receipt
+                                                                    </span>
                                                                 </button>
+                                                            )}
+                                                            {item.payment?.receiptImage && (
+                                                                <div className="text-[10px] font-semibold text-slate-500">
+                                                                    Source: payment.receiptImage
+                                                                </div>
                                                             )}
                                                         </div>
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-slate-400 whitespace-nowrap">
+                                            <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-400 sm:px-6">
                                                 {new Date(dateField).toLocaleDateString()}
                                                 <p className="text-[10px] opacity-50">{new Date(dateField).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                                             </td>
-                                            <td className="px-6 py-4 text-right">
+                                            <td className="px-4 py-4 text-right sm:px-6">
                                                 {data.status === 'pending' && (
-                                                    <div className="flex items-center justify-end gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <div className="flex items-center justify-end gap-2 opacity-100 transition-opacity md:opacity-0 group-hover:opacity-100">
                                                         {!isEnrollment && (
-                                                            <Link
-                                                                to={`/admin/courses/${data._id}/preview`}
-                                                                className="p-2 bg-slate-700/50 text-cyan-400 hover:bg-cyan-500/20 rounded-lg transition-colors border border-slate-600"
+                                                            <button
+                                                                onClick={() =>
+                                                                    setSelectedCoursePreview({
+                                                                        ...data,
+                                                                        previewVideoUrl,
+                                                                    })
+                                                                }
+                                                                className="p-2 bg-slate-700/50 text-blue-300 hover:bg-blue-500/20 rounded-lg transition-colors border border-[#1d3f7a]"
                                                                 title="Preview Course"
                                                             >
                                                                 <Eye className="w-5 h-5" />
-                                                            </Link>
+                                                            </button>
                                                         )}
                                                         <button
                                                             onClick={() => 
@@ -333,42 +381,191 @@ const Approvals: React.FC = () => {
                 )}
             </div>
 
-            {/* Proof Modal */}
-            {selectedProof && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-                    <motion.div 
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="relative bg-slate-900 border-2 border-slate-700 rounded-[2.5rem] overflow-hidden max-w-4xl w-full shadow-[0_0_50px_rgba(0,0,0,0.5)]"
+            {selectedCoursePreview && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-2 sm:p-4 backdrop-blur-lg">
+                    <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        className="w-full max-w-5xl overflow-hidden rounded-[1.25rem] border border-[#1d3f7a] bg-[#0a1630]/95 shadow-2xl backdrop-blur-2xl sm:rounded-[2rem]"
                     >
-                        <div className="p-8 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
+                        <div className="flex items-start justify-between gap-3 border-b border-[#14305f] px-4 py-3 sm:items-center sm:px-6 sm:py-4">
                             <div>
-                                <h3 className="text-2xl font-black text-white tracking-tight">Payment Verification</h3>
-                                <p className="text-slate-400 text-sm font-medium">Please cross-reference the transaction ID with your bank statement.</p>
+                                <h3 className="text-xl font-black text-white">{selectedCoursePreview.title}</h3>
+                                <p className="text-sm text-slate-300">
+                                    Instructor: {selectedCoursePreview.instructor?.name || 'Unknown'}
+                                </p>
                             </div>
-                            <button onClick={() => setSelectedProof(null)} className="p-2 bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-xl transition-all">
-                                <XCircle className="w-8 h-8" />
+                            <button
+                                onClick={() => setSelectedCoursePreview(null)}
+                                className="rounded-xl border border-[#1d3f7a] bg-black/30 p-2 text-slate-200 transition hover:border-[#60a5fa] hover:text-white"
+                            >
+                                <XCircle className="h-6 w-6" />
                             </button>
                         </div>
-                        <div className="p-4 bg-slate-950 flex justify-center max-h-[60vh] overflow-auto">
-                            <img src={selectedProof} alt="Payment Proof" className="max-w-full rounded-2xl shadow-2xl" />
+
+                        <div className="p-3 sm:p-4 md:p-5">
+                            {(() => {
+                                const previewUrlRaw = String(
+                                    selectedCoursePreview.previewVideoUrl ||
+                                        selectedCoursePreview.lessons?.[0]?.videoUrl ||
+                                        ''
+                                ).trim();
+                                const youtubeEmbed = getYoutubeEmbedSrc(
+                                    previewUrlRaw || null,
+                                    selectedCoursePreview.youtubeVideoId
+                                );
+                                const directFile =
+                                    previewUrlRaw && isLikelyDirectVideoFileUrl(previewUrlRaw);
+                                const externalOnly =
+                                    previewUrlRaw &&
+                                    /^https?:\/\//i.test(previewUrlRaw) &&
+                                    !youtubeEmbed &&
+                                    !directFile;
+
+                                return (
+                                    <div className="space-y-3">
+                                        <div
+                                            ref={coursePlayerWrapRef}
+                                            className="overflow-hidden rounded-2xl border border-[#14305f] bg-[#050b17]"
+                                        >
+                                            {youtubeEmbed ? (
+                                                <iframe
+                                                    title="Course preview"
+                                                    className="aspect-video min-h-[40vh] w-full bg-black"
+                                                    src={youtubeEmbed}
+                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                                                    allowFullScreen
+                                                />
+                                            ) : directFile && previewUrlRaw ? (
+                                                <video
+                                                    controls
+                                                    controlsList="nodownload noplaybackrate"
+                                                    className="aspect-video min-h-[40vh] w-full bg-black object-contain"
+                                                    src={previewUrlRaw}
+                                                />
+                                            ) : externalOnly ? (
+                                                <div className="flex min-h-[32vh] flex-col items-center justify-center gap-4 p-6 text-center text-slate-300 sm:min-h-[38vh] md:min-h-[45vh]">
+                                                    <p className="text-sm">
+                                                        Preview is not a YouTube embed or direct video file. Open the
+                                                        link to review.
+                                                    </p>
+                                                    <a
+                                                        href={previewUrlRaw}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center gap-2 rounded-xl border border-[#1d3f7a] bg-black/40 px-4 py-2 text-sm font-semibold text-cyan-300 hover:border-[#60a5fa]"
+                                                    >
+                                                        <ExternalLink className="h-4 w-4" />
+                                                        Open preview URL
+                                                    </a>
+                                                </div>
+                                            ) : (
+                                                <div className="flex min-h-[32vh] items-center justify-center p-4 text-center text-slate-300 sm:min-h-[38vh] md:min-h-[50vh] md:p-8">
+                                                    No preview video found for this course. You can still open the
+                                                    detailed course preview page.
+                                                </div>
+                                            )}
+                                        </div>
+                                        {(youtubeEmbed || directFile) && (
+                                            <button
+                                                type="button"
+                                                onClick={toggleCoursePlayerFullscreen}
+                                                className="inline-flex items-center gap-2 rounded-xl border border-[#1d3f7a] bg-black/30 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-[#60a5fa]"
+                                            >
+                                                <Maximize2 className="h-4 w-4" />
+                                                Fullscreen player
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })()}
+
+                            <div className="mt-4 rounded-2xl border border-[#14305f] bg-[#0a1630] p-4 text-slate-200">
+                                <p className="text-sm leading-relaxed">{selectedCoursePreview.description}</p>
+                            </div>
                         </div>
-                        <div className="p-8 bg-slate-900 border-t border-slate-800 flex justify-end gap-4 shadow-inner">
-                            <a 
-                                href={selectedProof} 
-                                target="_blank" 
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#14305f] px-4 py-3 sm:px-6 sm:py-4">
+                            <Link
+                                to={`/admin/courses/${selectedCoursePreview._id}/preview`}
+                                className="inline-flex items-center gap-2 rounded-xl border border-[#1d3f7a] bg-black/30 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-[#60a5fa]"
+                            >
+                                <ExternalLink className="h-4 w-4" />
+                                Full Course Preview
+                            </Link>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => handleCourseStatusUpdate(selectedCoursePreview._id, 'reject')}
+                                    className="rounded-xl border border-rose-500 bg-rose-500/10 px-4 py-2 text-sm font-bold text-rose-300 transition hover:bg-rose-500 hover:text-white"
+                                >
+                                    Reject
+                                </button>
+                                <button
+                                    onClick={() => handleCourseStatusUpdate(selectedCoursePreview._id, 'accept')}
+                                    className="rounded-xl border border-emerald-500 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-300 transition hover:bg-emerald-500 hover:text-white"
+                                >
+                                    Accept
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {selectedPaymentPreview && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-2 sm:p-4 backdrop-blur-md">
+                    <motion.div
+                        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        className="w-full max-w-5xl overflow-hidden rounded-[1.25rem] border border-[#14305f] bg-[#0a1630] shadow-2xl sm:rounded-[2rem]"
+                    >
+                        <div className="flex items-start justify-between gap-3 border-b border-[#14305f] px-4 py-3 sm:items-center sm:px-6 sm:py-4">
+                            <div>
+                                <h3 className="text-xl font-black text-white">Receipt Verification</h3>
+                                <p className="text-sm text-slate-400">
+                                    {selectedPaymentPreview.studentName || 'Student'} · {selectedPaymentPreview.courseTitle || 'Course'}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setSelectedPaymentPreview(null)}
+                                className="rounded-xl border border-[#1d3f7a] bg-[#050b17] p-2 text-slate-300 transition hover:border-[#60a5fa] hover:text-white"
+                            >
+                                <XCircle className="h-6 w-6" />
+                            </button>
+                        </div>
+
+                        <div className="max-h-[65vh] overflow-auto bg-[#050b17] p-3 sm:p-4">
+                            <img
+                                src={selectedPaymentPreview.proofUrl}
+                                alt="Payment receipt preview"
+                                className="mx-auto max-h-[58vh] w-auto max-w-full rounded-2xl border border-slate-800"
+                            />
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#14305f] px-4 py-3 sm:px-6 sm:py-4">
+                            <a
+                                href={selectedPaymentPreview.proofUrl}
+                                target="_blank"
                                 rel="noreferrer"
-                                className="flex items-center gap-3 px-6 py-4 bg-slate-800 text-white rounded-2xl hover:bg-slate-700 transition-all text-sm font-black uppercase tracking-wider"
+                                className="inline-flex items-center gap-2 rounded-xl border border-[#1d3f7a] bg-[#050b17] px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-[#60a5fa]"
                             >
-                                <ExternalLink className="w-5 h-5" />
-                                Full Size
+                                <ExternalLink className="h-4 w-4" />
+                                Open Full Size
                             </a>
-                            <button 
-                                onClick={() => setSelectedProof(null)}
-                                className="px-10 py-4 bg-gradient-to-r from-primary to-secondary text-white rounded-2xl font-black text-sm uppercase tracking-wider hover:scale-105 transition-all shadow-xl shadow-primary/20"
-                            >
-                                Close
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => handleRejectEnrollment(selectedPaymentPreview.enrollmentId, selectedPaymentPreview.paymentId)}
+                                    className="rounded-xl border border-rose-500 bg-rose-500/10 px-4 py-2 text-sm font-bold text-rose-300 transition hover:bg-rose-500 hover:text-white"
+                                >
+                                    Reject
+                                </button>
+                                <button
+                                    onClick={() => handleApproveEnrollment(selectedPaymentPreview.enrollmentId, selectedPaymentPreview.paymentId)}
+                                    className="rounded-xl border border-emerald-500 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-300 transition hover:bg-emerald-500 hover:text-white"
+                                >
+                                    Accept
+                                </button>
+                            </div>
                         </div>
                     </motion.div>
                 </div>

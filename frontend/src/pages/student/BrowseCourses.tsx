@@ -10,10 +10,12 @@ import {
     Lock,
     MessageSquare,
     PlayCircle,
+    Play,
     Video,
     ChevronRight,
     Download,
     FileText,
+    BookOpen,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import CourseReviews from './CourseReviews';
@@ -23,6 +25,7 @@ import { cn } from '../../utils/cn';
 import QuizPlayer from '../../components/student/QuizPlayer';
 import AssignmentPortal from '../../components/student/AssignmentPortal';
 import CourseForum from '../../components/student/CourseForum';
+import { getYoutubeEmbedSrc } from '../../utils/youtube';
 
 interface Lesson {
     title: string;
@@ -79,38 +82,14 @@ interface LibraryCourse extends CoursePreview {
 }
 
 
-const extractVideoId = (url?: string): string | null => {
-    if (!url) return null;
-    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-    const match = url.match(regex);
-    return match?.[1] ?? null;
-};
-
 const toEmbedUrl = (
     course: Pick<LibraryCourse, 'youtubeVideoId' | 'resourceUrl' | 'previewVideoUrl' | 'lessons' | 'hasFullAccess'>,
     lessonIndex: number = 0
 ): string | null => {
-    // Determine the source URL based on access and availability
-    // If not full access, fallback to preview/resource.
-    // If full access, default to the specified lesson index if it exists, otherwise preview.
     const lessonUrl = course.lessons?.[lessonIndex]?.videoUrl;
     const previewUrl = course.previewVideoUrl || course.resourceUrl;
-    
-    // Always prioritize the specific lesson if they have access
-    const sourceUrl = course.hasFullAccess && lessonUrl ? lessonUrl : (lessonUrl || previewUrl);
-
-    if (!sourceUrl && course.youtubeVideoId) {
-        return `https://www.youtube.com/embed/${course.youtubeVideoId}`;
-    }
-
-    // Default high-quality educational placeholder if nothing found
-    const defaultId = 'ZXGWYe01Ya8'; // Jim Rohn - Power of Persistence
-    const parsed = extractVideoId(sourceUrl);
-    if (parsed) {
-        return `https://www.youtube.com/embed/${parsed}`;
-    }
-    
-    return `https://www.youtube.com/embed/${defaultId}`;
+    const sourceUrl = course.hasFullAccess && lessonUrl ? lessonUrl : lessonUrl || previewUrl;
+    return getYoutubeEmbedSrc(sourceUrl || null, course.youtubeVideoId);
 };
 
 const BrowseCourses: React.FC = () => {
@@ -370,11 +349,11 @@ const BrowseCourses: React.FC = () => {
                     </div>
                 </motion.div>
 
-                <div className="grid gap-6 lg:grid-cols-12">
+                <div className="space-y-8">
                     <motion.section
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="space-y-4 lg:col-span-7"
+                        className="space-y-4"
                     >
                         <div className="grid gap-4 md:grid-cols-2">
                             {isLoading ? (
@@ -463,18 +442,25 @@ const BrowseCourses: React.FC = () => {
                         </div>
                     </motion.section>
 
+                    {selectedCourse && (
                     <motion.section
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="space-y-4 lg:col-span-5"
+                        className="space-y-4"
                     >
-                        <div className="overflow-hidden rounded-2xl border border-slate-700 bg-[#112240]">
-                            <div className="border-b border-slate-700 px-4 py-3 flex items-center justify-between">
+                        <div className="overflow-hidden rounded-2xl border border-slate-700 bg-[#0a192f] shadow-2xl">
+                            <div className="flex flex-col gap-3 border-b border-slate-700 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                                 <h2 className="inline-flex items-center gap-2 font-semibold text-white">
-                                    <Video className="h-4 w-4 text-blue-300" />
-                                    {activeTab === 'video' ? 'Course Video' : activeTab === 'quiz' ? 'Quiz Assessment' : 'Assignment Portal'}
+                                    <Video className="h-4 w-4 text-cyan-400" />
+                                    {activeTab === 'video'
+                                        ? 'Course Video'
+                                        : activeTab === 'quiz'
+                                          ? 'Quiz Assessment'
+                                          : activeTab === 'assignment'
+                                            ? 'Assignment Portal'
+                                            : 'Resources'}
                                 </h2>
-                                <div className="flex gap-1 p-1 bg-slate-800 rounded-lg">
+                                <div className="flex flex-wrap gap-1 rounded-lg bg-slate-800/90 p-1">
                                     <button 
                                         onClick={() => setActiveTab('video')}
                                         className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeTab === 'video' ? 'bg-blue-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}
@@ -502,10 +488,8 @@ const BrowseCourses: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="p-4">
-                                {!selectedCourse ? (
-                                    <p className="text-sm text-slate-300">Select a course to start learning.</p>
-                                ) : activeTab === 'quiz' && selectedQuiz ? (
+                            <div className="p-4 md:p-6">
+                                {activeTab === 'quiz' && selectedQuiz ? (
                                     <QuizPlayer 
                                         quiz={selectedQuiz} 
                                         onComplete={(score) => showSuccess(`Quiz finished with ${score}%`)}
@@ -520,54 +504,7 @@ const BrowseCourses: React.FC = () => {
                                         }}
                                         isSubmitting={false}
                                     />
-                                ) : (
-                                    <>
-                                        <h3 className="mb-2 font-semibold text-white">{selectedCourse.title}</h3>
-                                        <p className="mb-3 text-xs text-slate-300">{selectedCourse.description}</p>
-
-                                        <div className="relative overflow-hidden rounded-xl border border-slate-700 bg-black">
-                                            {toEmbedUrl(selectedCourse, selectedLessonIndex) ? (
-                                                <iframe
-                                                    className="h-56 w-full"
-                                                    src={toEmbedUrl(selectedCourse, selectedLessonIndex)!}
-                                                    title={selectedCourse.title}
-                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                    allowFullScreen
-                                                />
-                                            ) : (
-                                                <div className="flex h-56 items-center justify-center text-sm text-slate-300">
-                                                    Video preview unavailable
-                                                </div>
-                                            )}
-
-                                            {!selectedCourse.hasFullAccess && !watchedPartOne[selectedCourse._id] && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, y: 20 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-slate-900/80 backdrop-blur-md"
-                                                >
-                                                    <Lock className="h-10 w-10 text-cyan-400 mb-2" />
-                                                    <p className="text-xl font-bold text-white tracking-wide">Course Locked</p>
-                                                    <p className="px-6 text-center text-sm text-slate-300 max-w-md mt-1">
-                                                        Click below to instantly unlock and watch the first {selectedCourse.freeVideosLimit} lesson(s) for free, then enroll to proceed with the rest of the course!
-                                                    </p>
-                                                    <button 
-                                                        onClick={() => markPartOneWatched(selectedCourse._id)}
-                                                        className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-500/25 hover:scale-105 transition-all"
-                                                    >
-                                                        <PlayCircle className="h-5 w-5" />
-                                                        Watch Free Lessons
-                                                    </button>
-                                                </motion.div>
-                                            )}
-                                        </div>
-
-                                        <div className="mt-3 rounded-xl border border-slate-700 bg-slate-900/40 p-3">
-                                            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-300">
-                                                {activeTab === 'video' ? 'Curriculum' : activeTab === 'quiz' ? 'Available Quizzes' : 'Assignments'}
-                                            </p>
-                                            <div className="space-y-2 text-sm">
-                                                {activeTab === 'quiz' ? (
+                                ) : activeTab === 'quiz' ? (
                                                     <div className="space-y-2">
                                                         {(!selectedCourse.quizzes || selectedCourse.quizzes.length === 0) ? (
                                                             <p className="text-center py-4 text-slate-500 text-xs">No quizzes available.</p>
@@ -656,105 +593,193 @@ const BrowseCourses: React.FC = () => {
                                                             </div>
                                                         )}
                                                     </div>
-                                                ) : (!selectedCourse.lessons || selectedCourse.lessons.length === 0) ? (
-                                                    <div className="rounded-xl border border-slate-700/50 bg-slate-800/25 px-4 py-8 text-center text-slate-400">
-                                                        <Clock3 className="mx-auto h-8 w-8 mb-3 opacity-20" />
-                                                        No lessons available for this course yet.
-                                                    </div>
                                                 ) : (
-                                                    <div className="space-y-3">
-                                                        {selectedCourse.lessons.map((lesson, index) => {
-                                                            const isFreePreview = lesson.isFree === true || index === 0; // Fallback to index 0 if not set
-                                                            const isUnlocked = selectedCourse.hasFullAccess || isFreePreview;
-                                                            const isSelected = selectedLessonIndex === index;
-
-                                                            return (
-                                                                <button
-                                                                    key={lesson._id || `lesson-${index}`}
-                                                                    onClick={() => {
-                                                                        if (isUnlocked) {
-                                                                            setSelectedLessonIndex(index);
-                                                                        }
-                                                                    }}
-                                                                    className={cn(
-                                                                        'group w-full flex items-center justify-between text-left rounded-2xl border px-4 py-4 transition-all duration-300',
-                                                                        isSelected 
-                                                                            ? 'border-blue-400/50 bg-blue-500/15 shadow-[0_0_20px_rgba(59,130,246,0.15)] ring-1 ring-blue-400/20' 
-                                                                            : isUnlocked
-                                                                                ? 'border-slate-700/60 bg-slate-800/40 hover:bg-slate-700/60 hover:border-slate-500'
-                                                                                : 'border-slate-800/50 bg-slate-900/40 opacity-60 cursor-not-allowed'
-                                                                    )}
-                                                                >
-                                                                    <div className="flex items-center gap-4">
-                                                                        <div className={cn(
-                                                                            'flex items-center justify-center w-8 h-8 rounded-xl text-xs font-black transition-all duration-300',
-                                                                            isSelected 
-                                                                                ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' 
-                                                                                : isUnlocked 
-                                                                                    ? 'bg-slate-700 text-slate-300 group-hover:bg-slate-600 group-hover:text-white' 
-                                                                                    : 'bg-slate-800 text-slate-600'
-                                                                        )}>
-                                                                            {String(index + 1).padStart(2, '0')}
-                                                                        </div>
-                                                                        <div>
-                                                                            <span className={cn(
-                                                                                'font-bold block transition-colors',
-                                                                                isSelected ? 'text-white' : isUnlocked ? 'text-slate-200' : 'text-slate-500'
-                                                                            )}>{lesson.title}</span>
-                                                                            {isFreePreview && !selectedCourse.hasFullAccess && (
-                                                                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">🎁 Free Part</span>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="shrink-0 flex items-center gap-3">
-                                                                        {isUnlocked ? (
-                                                                            <PlayCircle className={cn(
-                                                                                'w-5 h-5 transition-transform duration-300 group-hover:scale-110',
-                                                                                isSelected ? 'text-blue-400' : 'text-slate-400 group-hover:text-blue-300'
-                                                                            )} />
-                                                                        ) : (
-                                                                            <div className="p-1.5 rounded-lg bg-slate-800/80 border border-slate-700">
-                                                                                <Lock className="w-3.5 h-3.5 text-slate-600" />
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
-
-                                                {!selectedCourse.hasFullAccess && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, y: 10 }}
-                                                        whileInView={{ opacity: 1, y: 0 }}
-                                                        className="mt-6 p-4 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-transparent backdrop-blur-sm"
-                                                    >
-                                                        <div className="flex gap-3">
-                                                            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center border border-amber-500/30">
-                                                                <Lock className="w-5 h-5 text-amber-400" />
-                                                            </div>
+                                                    <div className="grid gap-8 lg:grid-cols-12">
+                                                        <div className="space-y-4 lg:col-span-8">
                                                             <div>
-                                                                <p className="text-sm font-bold text-amber-200 mb-1">
-                                                                    {selectedCourse.enrollmentStatus === 'pending'
-                                                                        ? 'Approval Pending'
-                                                                        : 'Unlock All Lessons'}
-                                                                </p>
-                                                                <p className="text-xs text-amber-100/70 leading-relaxed">
-                                                                    {selectedCourse.enrollmentStatus === 'pending'
-                                                                        ? 'Your payment record is being verified. You will get full access soon!'
-                                                                        : `Enjoy Part 1 for free! Enroll now to unlock ${selectedCourse.lessons?.length ? selectedCourse.lessons.length - 1 : 'the remaining'} expert-led sessions.`}
-                                                                </p>
+                                                                <h3 className="text-xl font-black tracking-tight text-white">
+                                                                    {selectedCourse.title}
+                                                                </h3>
+                                                                <p className="mt-1 text-sm text-slate-300">{selectedCourse.description}</p>
+                                                            </div>
+                                                            <div className="relative aspect-video overflow-hidden rounded-3xl border border-slate-800 bg-black shadow-2xl">
+                                                                {toEmbedUrl(selectedCourse, selectedLessonIndex) ? (
+                                                                    <iframe
+                                                                        className="h-full w-full min-h-[220px]"
+                                                                        src={toEmbedUrl(selectedCourse, selectedLessonIndex)!}
+                                                                        title={selectedCourse.title}
+                                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                                                                        allowFullScreen
+                                                                    />
+                                                                ) : (
+                                                                    <div className="flex h-full min-h-[220px] items-center justify-center text-sm text-slate-300">
+                                                                        Video preview unavailable
+                                                                    </div>
+                                                                )}
+                                                                {!selectedCourse.hasFullAccess &&
+                                                                    !watchedPartOne[selectedCourse._id] && (
+                                                                        <motion.div
+                                                                            initial={{ opacity: 0, y: 20 }}
+                                                                            animate={{ opacity: 1, y: 0 }}
+                                                                            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-slate-900/80 backdrop-blur-md"
+                                                                        >
+                                                                            <Lock className="mb-2 h-10 w-10 text-cyan-400" />
+                                                                            <p className="text-xl font-bold tracking-wide text-white">
+                                                                                Course Locked
+                                                                            </p>
+                                                                            <p className="mt-1 max-w-md px-6 text-center text-sm text-slate-300">
+                                                                                Click below to instantly unlock and watch the first{' '}
+                                                                                {selectedCourse.freeVideosLimit} lesson(s) for free,
+                                                                                then enroll to proceed with the rest of the course!
+                                                                            </p>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() =>
+                                                                                    markPartOneWatched(selectedCourse._id)
+                                                                                }
+                                                                                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-105"
+                                                                            >
+                                                                                <PlayCircle className="h-5 w-5" />
+                                                                                Watch Free Lessons
+                                                                            </button>
+                                                                        </motion.div>
+                                                                    )}
                                                             </div>
                                                         </div>
-                                                    </motion.div>
+                                                        <div className="lg:col-span-4">
+                                                            <section className="overflow-hidden rounded-3xl border border-slate-700 bg-slate-800/40 shadow-xl">
+                                                                <div className="border-b border-slate-700 bg-slate-800/60 px-4 py-4">
+                                                                    <h2 className="flex items-center gap-2 text-lg font-black italic text-white">
+                                                                        <BookOpen className="h-5 w-5 text-cyan-400" />
+                                                                        Lesson Hierarchy
+                                                                    </h2>
+                                                                </div>
+                                                                <div className="custom-scrollbar max-h-[min(70vh,560px)] overflow-y-auto p-2">
+                                                                    {!selectedCourse.lessons ||
+                                                                    selectedCourse.lessons.length === 0 ? (
+                                                                        <div className="rounded-xl border border-slate-700/50 bg-slate-800/25 px-4 py-8 text-center text-slate-400">
+                                                                            <Clock3 className="mx-auto mb-3 h-8 w-8 opacity-20" />
+                                                                            No lessons available for this course yet.
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="space-y-2">
+                                                                            {selectedCourse.lessons.map((lesson, index) => {
+                                                                                const isFreePreview =
+                                                                                    lesson.isFree === true || index === 0;
+                                                                                const isUnlocked =
+                                                                                    selectedCourse.hasFullAccess ||
+                                                                                    isFreePreview;
+                                                                                const isSelected =
+                                                                                    selectedLessonIndex === index;
+                                                                                return (
+                                                                                    <button
+                                                                                        key={
+                                                                                            lesson._id ||
+                                                                                            `lesson-${index}`
+                                                                                        }
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            if (isUnlocked) {
+                                                                                                setSelectedLessonIndex(
+                                                                                                    index
+                                                                                                );
+                                                                                            }
+                                                                                        }}
+                                                                                        className={cn(
+                                                                                            'flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition-all',
+                                                                                            isSelected
+                                                                                                ? 'border-cyan-500/30 bg-cyan-500/10'
+                                                                                                : isUnlocked
+                                                                                                  ? 'border-transparent hover:bg-slate-800/50'
+                                                                                                  : 'cursor-not-allowed border-transparent opacity-60'
+                                                                                        )}
+                                                                                    >
+                                                                                        <div
+                                                                                            className={cn(
+                                                                                                'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-black',
+                                                                                                isSelected
+                                                                                                    ? 'bg-cyan-500 text-white'
+                                                                                                    : 'bg-slate-800 text-slate-500'
+                                                                                            )}
+                                                                                        >
+                                                                                            {index + 1}
+                                                                                        </div>
+                                                                                        <div className="min-w-0 flex-1">
+                                                                                            <p
+                                                                                                className={cn(
+                                                                                                    'truncate text-sm font-bold',
+                                                                                                    isSelected
+                                                                                                        ? 'text-white'
+                                                                                                        : 'text-slate-400'
+                                                                                                )}
+                                                                                            >
+                                                                                                {lesson.title}
+                                                                                            </p>
+                                                                                            <div className="mt-1 flex items-center gap-2">
+                                                                                                {isFreePreview ? (
+                                                                                                    <span className="rounded bg-emerald-400/10 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-tighter text-emerald-400/80">
+                                                                                                        Free Preview
+                                                                                                    </span>
+                                                                                                ) : (
+                                                                                                    <span className="rounded bg-rose-400/10 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-tighter text-rose-400/80">
+                                                                                                        Premium Part
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        {isUnlocked ? (
+                                                                                            <Play
+                                                                                                className={cn(
+                                                                                                    'h-4 w-4 flex-shrink-0',
+                                                                                                    isSelected
+                                                                                                        ? 'text-cyan-400'
+                                                                                                        : 'text-slate-600'
+                                                                                                )}
+                                                                                            />
+                                                                                        ) : (
+                                                                                            <Lock className="h-4 w-4 text-slate-600" />
+                                                                                        )}
+                                                                                    </button>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    )}
+                                                                    {!selectedCourse.hasFullAccess && (
+                                                                        <motion.div
+                                                                            initial={{ opacity: 0, y: 10 }}
+                                                                            whileInView={{ opacity: 1, y: 0 }}
+                                                                            className="mt-4 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-transparent p-4 backdrop-blur-sm"
+                                                                        >
+                                                                            <div className="flex gap-3">
+                                                                                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/20">
+                                                                                    <Lock className="h-5 w-5 text-amber-400" />
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="mb-1 text-sm font-bold text-amber-200">
+                                                                                        {selectedCourse.enrollmentStatus ===
+                                                                                        'pending'
+                                                                                            ? 'Approval Pending'
+                                                                                            : 'Unlock All Lessons'}
+                                                                                    </p>
+                                                                                    <p className="text-xs leading-relaxed text-amber-100/70">
+                                                                                        {selectedCourse.enrollmentStatus ===
+                                                                                        'pending'
+                                                                                            ? 'Your payment record is being verified. You will get full access soon!'
+                                                                                            : `Enjoy Part 1 for free! Enroll now to unlock ${selectedCourse.lessons?.length ? selectedCourse.lessons.length - 1 : 'the remaining'} expert-led sessions.`}
+                                                                                    </p>
+                                                                                </div>
+                                                                            </div>
+                                                                        </motion.div>
+                                                                    )}
+                                                                </div>
+                                                            </section>
+                                                        </div>
+                                                    </div>
                                                 )}
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
                             </div>
                         </div>
+                    </motion.section>
+                    )}
 
                         <div className="rounded-2xl border border-slate-700 bg-[#112240] overflow-hidden">
                             {!selectedCourse ? (
@@ -783,7 +808,6 @@ const BrowseCourses: React.FC = () => {
                                 apiUrl={API_URL}
                             />
                         )}
-                    </motion.section>
                 </div>
             </div>
         </div>

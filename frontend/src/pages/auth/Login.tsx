@@ -1,99 +1,38 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserRole } from '../../types';
 import { useAuth } from '../../context/AuthContext';
-import { Mail, Lock, Loader, ArrowRight, User, Eye, EyeOff, Shield, BookOpen } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+    Mail,
+    Lock,
+    Loader,
+    ArrowRight,
+    User,
+    Eye,
+    EyeOff,
+    BookOpen,
+    Globe,
+    Layers,
+    GraduationCap,
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import apiService from '../../utils/api';
+import { SafeImage } from '../../components/ui/SafeImage';
+import { HERO_BACKGROUND_IMAGES } from '../../constants/heroBackgrounds';
 
-// Maps a returned role to the correct dashboard path
-const getRolePath = (role: UserRole): string => {
-    switch (role) {
-        case UserRole.ADMIN:
-        case UserRole.SUPER_ADMIN:
-        case UserRole.MODERATOR:
-            return '/dashboard'; // Admin dashboard
-        case UserRole.INSTRUCTOR:
-        case UserRole.ASSISTANT_INSTRUCTOR:
-            return '/dashboard'; // Instructor dashboard
-        case UserRole.STUDENT:
-        case UserRole.PREMIUM_STUDENT:
-        default:
-            return '/dashboard'; // Student dashboard
-    }
-};
+const POST_AUTH_PATH = '/';
+
+const PAGE_TITLE = 'Sign in — SESA TECHNOLOGY';
+const PAGE_DESCRIPTION =
+    'SESA TECHNOLOGY — Safe Educational & Skill Academy. Sign in or create a learner account.';
 
 interface LoginProps {
     role?: UserRole;
     title?: string;
 }
 
-const roleOrder: UserRole[] = [UserRole.STUDENT, UserRole.PREMIUM_STUDENT, UserRole.INSTRUCTOR, UserRole.ASSISTANT_INSTRUCTOR, UserRole.ADMIN, UserRole.MODERATOR];
-
-const roleLabels: Record<UserRole, string> = {
-    [UserRole.SUPER_ADMIN]: 'Super Admin',
-    [UserRole.ADMIN]: 'Admin',
-    [UserRole.MODERATOR]: 'Moderator',
-    [UserRole.INSTRUCTOR]: 'Instructor',
-    [UserRole.ASSISTANT_INSTRUCTOR]: 'Assistant',
-    [UserRole.STUDENT]: 'Student',
-    [UserRole.PREMIUM_STUDENT]: 'Premium',
-};
-
-const roleConfig: Record<UserRole, { gradient: string; badge: string; description: string }> = {
-    [UserRole.SUPER_ADMIN]: {
-        gradient: 'from-violet-500 to-blue-500',
-        badge: 'SA',
-        description: 'Super Admin has unrestricted access across every module and route.',
-    },
-    [UserRole.STUDENT]: {
-        gradient: 'from-blue-500 to-primary',
-        badge: 'ST',
-        description: 'Students can access courses, lessons, and certificates.',
-    },
-    [UserRole.PREMIUM_STUDENT]: {
-        gradient: 'from-amber-500 to-orange-500',
-        badge: 'PS',
-        description: 'Premium Students have access to exclusive advanced content.',
-    },
-    [UserRole.INSTRUCTOR]: {
-        gradient: 'from-emerald-500 to-teal-500',
-        badge: 'IN',
-        description: 'Instructors can create courses and manage learners.',
-    },
-    [UserRole.ASSISTANT_INSTRUCTOR]: {
-        gradient: 'from-cyan-500 to-blue-400',
-        badge: 'AI',
-        description: 'Assistant Instructors help manage course content and students.',
-    },
-    [UserRole.ADMIN]: {
-        gradient: 'from-fuchsia-500 to-rose-500',
-        badge: 'AD',
-        description: 'Admins can manage users, approvals, and settings.',
-    },
-    [UserRole.MODERATOR]: {
-        gradient: 'from-indigo-500 to-purple-500',
-        badge: 'MO',
-        description: 'Moderators handle community discussions and enrollments.',
-    },
-};
-
-const parseRole = (value: string | null | undefined): UserRole | null => {
-    if (!value) return null;
-    if (Object.values(UserRole).includes(value as UserRole)) {
-        return value as UserRole;
-    }
-    return null;
-};
-
-const Login: React.FC<LoginProps> = ({ role, title }) => {
-    const [searchParams] = useSearchParams();
-    const roleFromQuery = parseRole(searchParams.get('role'));
-    const fallbackRole = role ?? UserRole.STUDENT;
-    const initialRole = roleFromQuery ?? fallbackRole;
-
+const Login: React.FC<LoginProps> = () => {
     const [isRegister, setIsRegister] = useState(false);
-    const [selectedRole, setSelectedRole] = useState<UserRole>(initialRole);
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -102,26 +41,35 @@ const Login: React.FC<LoginProps> = ({ role, title }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [heroIndex, setHeroIndex] = useState(0);
 
     const { login, isAuthenticated } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
-        setSelectedRole(roleFromQuery ?? fallbackRole);
-    }, [roleFromQuery, fallbackRole]);
+        const prevTitle = document.title;
+        const meta = document.querySelector('meta[name="description"]');
+        const prevDesc = meta?.getAttribute('content') ?? '';
+        document.title = PAGE_TITLE;
+        if (meta) meta.setAttribute('content', PAGE_DESCRIPTION);
+        return () => {
+            document.title = prevTitle;
+            if (meta) meta.setAttribute('content', prevDesc);
+        };
+    }, []);
 
-    // Safety net: if user is already authenticated (e.g. page refresh), redirect them away from login
+    useEffect(() => {
+        const id = window.setInterval(() => {
+            setHeroIndex((prev) => (prev + 1) % HERO_BACKGROUND_IMAGES.length);
+        }, 4000);
+        return () => window.clearInterval(id);
+    }, []);
+
     useEffect(() => {
         if (isAuthenticated) {
-            navigate('/dashboard', { replace: true });
+            navigate(POST_AUTH_PATH, { replace: true });
         }
     }, [isAuthenticated, navigate]);
-
-    const config = useMemo(() => roleConfig[selectedRole], [selectedRole]);
-    const computedTitle = useMemo(
-        () => title ?? `${roleLabels[selectedRole]} Access`,
-        [title, selectedRole]
-    );
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -153,48 +101,24 @@ const Login: React.FC<LoginProps> = ({ role, title }) => {
                     name: name.trim(),
                     email: email.trim(),
                     password,
-                    role: selectedRole,
+                    role: UserRole.STUDENT,
                 });
 
-                if (response.data.user.role !== selectedRole) {
-                    setError('Registration failed because the selected role did not match.');
-                    setIsLoading(false);
-                    return;
-                }
-
                 login(response.data.token, response.data.user);
-                const regPath = getRolePath(response.data.user.role as UserRole);
-                navigate(regPath, { replace: true });
+                navigate(POST_AUTH_PATH, { replace: true });
                 return;
             }
 
             const response = await apiService.auth.login(email.trim(), password);
-
-            const returnedRole = response.data?.user?.role as UserRole;
-            
-            const isMatch = returnedRole === selectedRole;
-            const isStudentGroup = (selectedRole === UserRole.STUDENT && (returnedRole === UserRole.STUDENT || returnedRole === UserRole.PREMIUM_STUDENT));
-            const isInstructorGroup = (selectedRole === UserRole.INSTRUCTOR && (returnedRole === UserRole.INSTRUCTOR || returnedRole === UserRole.ASSISTANT_INSTRUCTOR));
-            const isAdminGroup = (selectedRole === UserRole.ADMIN && (returnedRole === UserRole.ADMIN || returnedRole === UserRole.SUPER_ADMIN || returnedRole === UserRole.MODERATOR));
-
-            if (!isMatch && !isStudentGroup && !isInstructorGroup && !isAdminGroup) {
-                const roleName = roleLabels[returnedRole] ?? 'another';
-                setError(`This account belongs to ${roleName.toLowerCase()}. Select the correct role and try again.`);
-                setIsLoading(false);
-                return;
-            }
-
-            // Save auth state FIRST, then navigate immediately
             login(response.data.token, response.data.user);
-            const dashPath = getRolePath(returnedRole);
-            navigate(dashPath, { replace: true });
-        } catch (err: any) {
+            navigate(POST_AUTH_PATH, { replace: true });
+        } catch (err: unknown) {
             console.error('[Login] Error:', err);
+            const axiosErr = err as { response?: { data?: { message?: string; errors?: { msg?: string }[] } } };
             const msg =
-                err.response?.data?.message ||
-                err.response?.data?.errors?.[0]?.msg ||
+                axiosErr.response?.data?.message ||
+                axiosErr.response?.data?.errors?.[0]?.msg ||
                 'Something went wrong. Please try again.';
-            console.error('[Login] Error message:', msg);
             setError(msg);
         } finally {
             setIsLoading(false);
@@ -202,39 +126,64 @@ const Login: React.FC<LoginProps> = ({ role, title }) => {
     };
 
     return (
-        <div className="min-h-[90vh] flex items-center justify-center bg-gradient-to-br from-gray-50 via-gray-100 to-gray-50 dark:from-dark-bg dark:via-dark-card dark:to-dark-bg p-4">
-            <div className="fixed inset-0 overflow-hidden pointer-events-none">
-                <div className={`absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br ${config.gradient} rounded-full blur-[120px] opacity-20`} />
-                <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full blur-[120px] opacity-10" />
-            </div>
-
-            <div className="w-full max-w-md relative z-10">
+        <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
+            {/* Rotating hero backgrounds (same set as landing) */}
+            <AnimatePresence initial={false} mode="sync">
                 <motion.div
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ duration: 0.5 }}
-                    className="bg-white dark:bg-dark-card rounded-3xl shadow-2xl shadow-black/5 dark:shadow-black/30 overflow-hidden"
+                    key={heroIndex}
+                    className="absolute inset-0"
+                    initial={{ opacity: 0, scale: 1.08 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.96 }}
+                    transition={{ duration: 2, ease: 'easeInOut' }}
                 >
-                    <div className={`h-2 bg-gradient-to-r ${config.gradient}`} />
+                    <SafeImage
+                        src={HERO_BACKGROUND_IMAGES[heroIndex]}
+                        alt="SESA Academy"
+                        className="w-full h-full object-cover brightness-95 saturate-110"
+                        wrapperClassName="absolute inset-0"
+                        fallback={
+                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+                                <GraduationCap className="h-24 w-24 text-white/30" />
+                            </div>
+                        }
+                    />
+                </motion.div>
+            </AnimatePresence>
+            <div className="absolute inset-0 bg-gradient-to-r from-[#030712]/88 via-[#0b1f4d]/72 to-[#030712]/86" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/25 to-black/60" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(59,130,246,0.12),_transparent_55%)]" />
+
+            <motion.div
+                initial={{ y: 24, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.45 }}
+                className="relative z-10 w-full max-w-md"
+            >
+                <div className="overflow-hidden rounded-3xl border border-white/25 bg-white/12 shadow-2xl shadow-black/40 backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/45">
+                    <div className="h-1.5 bg-gradient-to-r from-[#2563eb] via-cyan-400 to-[#1e40af]" />
 
                     <div className="p-8">
-                        <div className="text-center mb-8">
-                            <motion.div
-                                animate={{ scale: [1, 1.06, 1] }}
-                                transition={{ duration: 2.8, repeat: Infinity }}
-                                className={`inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br ${config.gradient} rounded-2xl shadow-lg mb-4`}
-                            >
-                                <span className="text-white text-xl font-black tracking-wide">{config.badge}</span>
-                            </motion.div>
-                            <h2 className="text-2xl font-black text-dark-bg dark:text-light mb-1">{computedTitle}</h2>
-                            <p className="text-gray-500 dark:text-gray-400 text-sm">
+                        <div className="mb-8 text-center">
+                            <img
+                                src="/sesa-technology-logo.png"
+                                alt="SESA Technology"
+                                className="mx-auto h-auto max-h-28 w-auto max-w-[min(100%,280px)] object-contain drop-shadow-lg"
+                            />
+                            <h2 className="mt-4 text-xl font-black tracking-tight text-slate-900 dark:text-white md:text-2xl">
+                                SESA Technology
+                            </h2>
+                            <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300 md:text-sm">
+                                Safe Educational &amp; Skill Academy
+                            </p>
+                            <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">
                                 {isRegister
-                                    ? 'Register with name, email, password, and role.'
-                                    : 'Login with email, password, and role.'}
+                                    ? 'Create your account to start learning.'
+                                    : 'Sign in with email and password to access the platform.'}
                             </p>
                         </div>
 
-                        <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1 mb-6">
+                        <div className="mb-6 flex rounded-xl border border-white/20 bg-white/10 p-1 dark:bg-black/20">
                             <button
                                 type="button"
                                 onClick={() => {
@@ -242,10 +191,11 @@ const Login: React.FC<LoginProps> = ({ role, title }) => {
                                     setError('');
                                     setSuccess('');
                                 }}
-                                className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${!isRegister
-                                    ? 'bg-white dark:bg-dark-bg text-dark-bg dark:text-white shadow-md'
-                                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                                    }`}
+                                className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-all duration-300 ${
+                                    !isRegister
+                                        ? 'bg-white text-slate-900 shadow-md dark:bg-white dark:text-slate-900'
+                                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                                }`}
                             >
                                 Login
                             </button>
@@ -256,10 +206,11 @@ const Login: React.FC<LoginProps> = ({ role, title }) => {
                                     setError('');
                                     setSuccess('');
                                 }}
-                                className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${isRegister
-                                    ? 'bg-white dark:bg-dark-bg text-dark-bg dark:text-white shadow-md'
-                                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                                    }`}
+                                className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-all duration-300 ${
+                                    isRegister
+                                        ? 'bg-white text-slate-900 shadow-md dark:bg-white dark:text-slate-900'
+                                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                                }`}
                             >
                                 Register
                             </button>
@@ -271,7 +222,7 @@ const Login: React.FC<LoginProps> = ({ role, title }) => {
                                     initial={{ height: 0, opacity: 0 }}
                                     animate={{ height: 'auto', opacity: 1 }}
                                     exit={{ height: 0, opacity: 0 }}
-                                    className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-sm border border-red-100 dark:border-red-800 font-medium"
+                                    className="mb-4 rounded-xl border border-red-200/50 bg-red-50/90 p-3 text-sm font-medium text-red-700 backdrop-blur-sm dark:border-red-800/50 dark:bg-red-950/40 dark:text-red-300"
                                 >
                                     {error}
                                 </motion.div>
@@ -281,7 +232,7 @@ const Login: React.FC<LoginProps> = ({ role, title }) => {
                                     initial={{ height: 0, opacity: 0 }}
                                     animate={{ height: 'auto', opacity: 1 }}
                                     exit={{ height: 0, opacity: 0 }}
-                                    className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-sm border border-emerald-100 dark:border-emerald-800 font-medium"
+                                    className="mb-4 rounded-xl border border-emerald-200/50 bg-emerald-50/90 p-3 text-sm font-medium text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300"
                                 >
                                     {success}
                                 </motion.div>
@@ -297,18 +248,18 @@ const Login: React.FC<LoginProps> = ({ role, title }) => {
                                         exit={{ height: 0, opacity: 0 }}
                                         className="space-y-1.5 overflow-hidden"
                                     >
-                                        <label className="text-xs font-semibold dark:text-gray-300 uppercase tracking-wider">
-                                            Full Name
+                                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                                            Full name
                                         </label>
                                         <div className="relative">
-                                            <User className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                                            <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                                             <input
                                                 type="text"
                                                 required={isRegister}
                                                 value={name}
                                                 onChange={(e) => setName(e.target.value)}
-                                                className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent dark:text-white transition-all outline-none"
-                                                placeholder="John Doe"
+                                                className="w-full rounded-xl border border-white/30 bg-white/80 py-3 pl-10 pr-4 text-slate-900 outline-none ring-cyan-500/30 transition-all placeholder:text-slate-400 focus:border-cyan-400 focus:ring-2 dark:border-white/10 dark:bg-slate-800/80 dark:text-white"
+                                                placeholder="Your name"
                                             />
                                         </div>
                                     </motion.div>
@@ -316,63 +267,42 @@ const Login: React.FC<LoginProps> = ({ role, title }) => {
                             </AnimatePresence>
 
                             <div className="space-y-1.5">
-                                <label className="text-xs font-semibold dark:text-gray-300 uppercase tracking-wider">
-                                    Role
-                                </label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {roleOrder.map((r) => (
-                                        <button
-                                            key={r}
-                                            type="button"
-                                            onClick={() => setSelectedRole(r)}
-                                            className={`py-2 rounded-lg text-xs font-bold border transition-all ${selectedRole === r
-                                                ? `bg-gradient-to-r ${roleConfig[r].gradient} text-white border-transparent`
-                                                : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'
-                                                }`}
-                                        >
-                                            {roleLabels[r]}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-semibold dark:text-gray-300 uppercase tracking-wider">
-                                    Email Address
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                                    Email address
                                 </label>
                                 <div className="relative">
-                                    <Mail className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                                    <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                                     <input
                                         type="email"
                                         required
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent dark:text-white transition-all outline-none"
+                                        className="w-full rounded-xl border border-white/30 bg-white/80 py-3 pl-10 pr-4 text-slate-900 outline-none ring-cyan-500/30 transition-all placeholder:text-slate-400 focus:border-cyan-400 focus:ring-2 dark:border-white/10 dark:bg-slate-800/80 dark:text-white"
                                         placeholder="name@example.com"
                                     />
                                 </div>
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="text-xs font-semibold dark:text-gray-300 uppercase tracking-wider">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                                     Password
                                 </label>
                                 <div className="relative">
-                                    <Lock className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                                    <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                                     <input
                                         type={showPassword ? 'text' : 'password'}
                                         required
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        className="w-full pl-10 pr-12 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent dark:text-white transition-all outline-none"
-                                        placeholder={isRegister ? 'Minimum 6 characters' : 'Your secure password'}
+                                        className="w-full rounded-xl border border-white/30 bg-white/80 py-3 pl-10 pr-12 text-slate-900 outline-none ring-cyan-500/30 transition-all placeholder:text-slate-400 focus:border-cyan-400 focus:ring-2 dark:border-white/10 dark:bg-slate-800/80 dark:text-white"
+                                        placeholder={isRegister ? '8+ chars, include a number' : 'Your password'}
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-700 dark:hover:text-white"
                                     >
-                                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                                     </button>
                                 </div>
                             </div>
@@ -385,17 +315,17 @@ const Login: React.FC<LoginProps> = ({ role, title }) => {
                                         exit={{ height: 0, opacity: 0 }}
                                         className="space-y-1.5 overflow-hidden"
                                     >
-                                        <label className="text-xs font-semibold dark:text-gray-300 uppercase tracking-wider">
-                                            Confirm Password
+                                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                                            Confirm password
                                         </label>
                                         <div className="relative">
-                                            <Shield className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                                            <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                                             <input
                                                 type={showPassword ? 'text' : 'password'}
                                                 required={isRegister}
                                                 value={confirmPassword}
                                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                                className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent dark:text-white transition-all outline-none"
+                                                className="w-full rounded-xl border border-white/30 bg-white/80 py-3 pl-10 pr-4 text-slate-900 outline-none ring-cyan-500/30 transition-all placeholder:text-slate-400 focus:border-cyan-400 focus:ring-2 dark:border-white/10 dark:bg-slate-800/80 dark:text-white"
                                                 placeholder="Re-enter password"
                                             />
                                         </div>
@@ -404,33 +334,52 @@ const Login: React.FC<LoginProps> = ({ role, title }) => {
                             </AnimatePresence>
 
                             <motion.button
+                                type="submit"
+                                whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                                 disabled={isLoading}
-                                className={`w-full py-4 bg-gradient-to-r ${config.gradient} text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed mt-2`}
+                                className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2563eb] to-cyan-500 py-4 font-bold text-white shadow-lg shadow-blue-500/30 transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 {isLoading ? (
-                                    <Loader className="w-5 h-5 animate-spin" />
+                                    <Loader className="h-5 w-5 animate-spin" />
                                 ) : (
                                     <>
-                                        <span>{isRegister ? 'Create Account' : 'Login to Dashboard'}</span>
-                                        <ArrowRight className="w-5 h-5" />
+                                        <span>{isRegister ? 'Create account' : 'Login'}</span>
+                                        <ArrowRight className="h-5 w-5" />
                                     </>
                                 )}
                             </motion.button>
                         </form>
 
-                        <div className="mt-6 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700">
-                            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                                <BookOpen className="w-3.5 h-3.5 flex-shrink-0" />
-                                <span>{config.description}</span>
+                        <div className="mt-6 rounded-xl border border-white/15 bg-white/5 p-3 dark:bg-black/20">
+                            <div className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400">
+                                <BookOpen className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-500" />
+                                <span>
+                                    New accounts register as learners. Staff accounts use the same sign-in with their
+                                    organization email.
+                                </span>
                             </div>
                         </div>
+
+                        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-white/10 pt-5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                            <span className="inline-flex items-center gap-1.5">
+                                <Globe className="h-3.5 w-3.5 text-cyan-400" />
+                                10,000+ Students
+                            </span>
+                            <span className="inline-flex items-center gap-1.5">
+                                <Layers className="h-3.5 w-3.5 text-cyan-400" />
+                                50+ Courses
+                            </span>
+                            <span className="inline-flex items-center gap-1.5">
+                                <GraduationCap className="h-3.5 w-3.5 text-cyan-400" />
+                                Expert teachers
+                            </span>
+                        </div>
                     </div>
-                </motion.div>
-            </div>
+                </div>
+            </motion.div>
         </div>
     );
 };
 
 export default Login;
-

@@ -10,6 +10,7 @@ import {
     ArrowRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import AnnouncementBanner from '../AnnouncementBanner';
 
 interface InstructorDashboardProps {
     user: any;
@@ -25,12 +26,12 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
     stats
 }) => {
     return (
-        <div className="space-y-8 pb-12">
+        <div className="space-y-6 overflow-x-clip pb-12 sm:space-y-8">
             {/* Header Hero */}
             <motion.div 
                 initial={{ opacity: 0, y: 20 }} 
                 animate={{ opacity: 1, y: 0 }}
-                className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-[#1e293b] to-[#0f172a] p-8 md:p-12 border border-slate-700/50 shadow-2xl"
+                className="relative overflow-hidden rounded-[2rem] border border-slate-700/50 bg-gradient-to-br from-[#1e293b] to-[#0f172a] p-5 shadow-2xl sm:p-6 md:rounded-[2.5rem] md:p-12"
             >
                 <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-[100px] -mr-48 -mt-48" />
                 <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
@@ -58,8 +59,14 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                 </div>
             </motion.div>
 
+            <div className="flex justify-end px-1">
+                <div className="w-full max-w-md">
+                    <AnnouncementBanner mode="cards" audience="instructor" title="Instructor Notifications" />
+                </div>
+            </div>
+
             {/* Quick Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
                 {stats.map((s, i) => (
                     <motion.div 
                         key={s.label} 
@@ -101,9 +108,9 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                 <motion.section
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="rounded-[2.5rem] border border-slate-700/50 bg-[#112240]/40 backdrop-blur-xl p-8 lg:col-span-8 shadow-2xl"
+                    className="rounded-[2rem] border border-slate-700/50 bg-[#112240]/40 p-4 backdrop-blur-xl shadow-2xl sm:p-6 lg:col-span-8 lg:rounded-[2.5rem] lg:p-8"
                 >
-                    <div className="flex items-center justify-between mb-8">
+                    <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:mb-8 sm:flex-row sm:items-center">
                         <div>
                             <h2 className="text-2xl font-black text-white italic">Active <span className="text-cyan-400">Courses</span></h2>
                             <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Live Portfolio</p>
@@ -131,7 +138,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                                         </div>
                                         <div>
                                             <p className="font-black text-white group-hover:text-cyan-400 transition-colors italic">{course.title}</p>
-                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter mt-0.5 line-clamp-1 max-w-[300px]">{course.description}</p>
+                                            <p className="mt-0.5 line-clamp-1 max-w-[180px] text-[10px] font-bold uppercase tracking-tighter text-slate-500 sm:max-w-[300px]">{course.description}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
@@ -152,9 +159,9 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                 <motion.aside
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="space-y-6 lg:col-span-4"
+                    className="min-w-0 space-y-6 lg:col-span-4"
                 >
-                    <div className="rounded-[2.5rem] border border-slate-700/50 bg-[#112240]/40 backdrop-blur-xl p-8 shadow-2xl">
+                    <div className="rounded-[2rem] border border-slate-700/50 bg-[#112240]/40 p-4 backdrop-blur-xl shadow-2xl sm:p-6 lg:rounded-[2.5rem] lg:p-8">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">
                                 Student Notifications

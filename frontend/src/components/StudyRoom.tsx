@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Users, MessageCircle, PenTool, Mic, MicOff, Video, VideoOff, Share, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import io, { Socket } from 'socket.io-client';
+import apiService, { API_BASE_URL } from '../utils/api';
 
 interface Participant {
     userId: string;
@@ -47,8 +48,7 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ roomId, onLeave }) => {
 
     useEffect(() => {
         // Initialize socket connection
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-        socketRef.current = io(apiUrl.replace(/\/api$/, ''));
+        socketRef.current = io(API_BASE_URL.replace(/\/api$/, ''), { withCredentials: true });
         
         // Join room
         joinRoom();
@@ -78,15 +78,9 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ roomId, onLeave }) => {
 
     const joinRoom = async () => {
         try {
-            const response = await fetch(`/api/collaboration/rooms/${roomId}/join`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
+            const response = await apiService.collaboration.joinRoom(roomId);
+            if (response.data) {
+                const data = response.data;
                 setRoomInfo(data.room);
                 setParticipants(data.room.participants.filter((p: Participant) => p.isActive));
                 setMessages(data.recentMessages || []);
@@ -102,12 +96,7 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ roomId, onLeave }) => {
 
     const leaveRoom = async () => {
         try {
-            await fetch(`/api/collaboration/rooms/${roomId}/leave`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
+            await apiService.collaboration.leaveRoom(roomId);
             
             socketRef.current?.emit('leave_room', roomId);
             onLeave();
@@ -120,19 +109,11 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ roomId, onLeave }) => {
         if (!newMessage.trim()) return;
 
         try {
-            const response = await fetch(`/api/collaboration/rooms/${roomId}/messages`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    message: newMessage,
-                    type: 'text'
-                })
+            const response = await apiService.collaboration.sendMessage(roomId, {
+                message: newMessage,
+                type: 'text'
             });
-
-            if (response.ok) {
+            if (response.data) {
                 setNewMessage('');
             }
         } catch (error) {
@@ -142,15 +123,8 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ roomId, onLeave }) => {
 
     const updateWhiteboard = async () => {
         try {
-            await fetch(`/api/collaboration/rooms/${roomId}/whiteboard`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    elements: whiteboardElements
-                })
+            await apiService.collaboration.updateWhiteboard(roomId, {
+                elements: whiteboardElements as any[]
             });
         } catch (error) {
             console.error('Error updating whiteboard:', error);

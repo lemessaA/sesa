@@ -167,16 +167,16 @@ const AccessibilityHelper: React.FC<AccessibilityHelperProps> = ({ isOpen, onClo
 
     const handleNavigationCommand = (command: string) => {
         if (command.includes('dashboard')) {
-            window.location.href = '/dashboard';
+            window.location.assign('/dashboard');
             speak('Navigating to dashboard');
         } else if (command.includes('courses')) {
-            window.location.href = '/student/browse-courses';
+            window.location.assign('/student/browse');
             speak('Navigating to courses');
         } else if (command.includes('profile')) {
-            window.location.href = '/profile';
+            window.location.assign('/dashboard');
             speak('Navigating to profile');
         } else if (command.includes('home')) {
-            window.location.href = '/';
+            window.location.assign('/');
             speak('Navigating to home page');
         }
     };

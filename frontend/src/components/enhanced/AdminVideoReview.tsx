@@ -22,6 +22,7 @@ import {
     SkipForward,
     RotateCcw
 } from 'lucide-react';
+import apiService from '../../utils/api';
 
 interface VideoReview {
     id: string;
@@ -53,6 +54,36 @@ interface VideoReview {
     };
 }
 
+const mapVideo = (video: any): VideoReview => ({
+    id: video._id,
+    title: video.title,
+    description: video.description || '',
+    videoUrl: apiService.videoWorkflow.getUploadUrl('videos', (video.videoUrl || '').split('/').pop() || ''),
+    thumbnailUrl: '',
+    instructorName: video.instructorId?.name || 'Instructor',
+    instructorEmail: video.instructorId?.email || '',
+    instructorAvatar: video.instructorId?.profileImage,
+    duration: video.duration || 0,
+    fileSize: video.fileSize || 0,
+    format: video.format || 'mp4',
+    resolution: 'HD',
+    status: video.status,
+    adminReview: video.adminReview ? {
+        decision: video.adminReview.decision,
+        feedback: video.adminReview.feedback,
+        reviewedAt: new Date(video.adminReview.reviewedAt),
+        reviewedBy: video.adminReview.reviewedBy || 'Admin'
+    } : undefined,
+    createdAt: new Date(video.createdAt),
+    metadata: {
+        uploadDate: new Date(video.createdAt),
+        processingTime: video.metadata?.processingTime,
+        quality: 'high',
+        hasSubtitles: false,
+        language: video.metadata?.language || 'en'
+    }
+});
+
 const AdminVideoReview: React.FC = () => {
     const [videos, setVideos] = useState<VideoReview[]>([]);
     const [selectedVideo, setSelectedVideo] = useState<VideoReview | null>(null);
@@ -68,61 +99,21 @@ const AdminVideoReview: React.FC = () => {
     const [isProcessing, setIsProcessing] = useState(false);
     const videoRef = React.useRef<HTMLVideoElement>(null);
 
-    // Mock data - in production, fetch from API
     useEffect(() => {
-        const mockVideos: VideoReview[] = [
-            {
-                id: '1',
-                title: 'Introduction to React Hooks',
-                description: 'Complete guide to React Hooks including useState, useEffect, and custom hooks',
-                videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', // Sample video
-                thumbnailUrl: 'https://via.placeholder.com/640x360?text=React+Hooks+Intro',
-                instructorName: 'John Smith',
-                instructorEmail: 'john.smith@example.com',
-                instructorAvatar: 'https://via.placeholder.com/50?text=JS',
-                duration: 1800, // 30 minutes
-                fileSize: 250000000, // 250MB
-                format: 'mp4',
-                resolution: '1080p',
-                status: 'pending_review',
-                createdAt: new Date('2024-03-15T10:30:00'),
-                metadata: {
-                    uploadDate: new Date('2024-03-15T10:30:00'),
-                    processingTime: 45,
-                    quality: 'high',
-                    hasSubtitles: false,
-                    language: 'en'
-                }
-            },
-            {
-                id: '2',
-                title: 'Advanced State Management',
-                description: 'Deep dive into Redux, Context API, and advanced state patterns',
-                videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', // Sample video
-                thumbnailUrl: 'https://via.placeholder.com/640x360?text=Advanced+State',
-                instructorName: 'Sarah Johnson',
-                instructorEmail: 'sarah.j@example.com',
-                instructorAvatar: 'https://via.placeholder.com/50?text=SJ',
-                duration: 2400, // 40 minutes
-                fileSize: 320000000, // 320MB
-                format: 'mp4',
-                resolution: '1080p',
-                status: 'pending_review',
-                createdAt: new Date('2024-03-15T09:15:00'),
-                metadata: {
-                    uploadDate: new Date('2024-03-15T09:15:00'),
-                    processingTime: 60,
-                    quality: 'high',
-                    hasSubtitles: true,
-                    language: 'en'
-                }
+        const load = async () => {
+            try {
+                setLoading(true);
+                const response = await apiService.videoWorkflow.getPendingVideos({ page: 1, limit: 50 });
+                const mapped = (response.data?.data || []).map(mapVideo);
+                setVideos(mapped);
+            } catch (error) {
+                console.error('Failed to load pending videos:', error);
+                setVideos([]);
+            } finally {
+                setLoading(false);
             }
-        ];
-
-        setTimeout(() => {
-            setVideos(mockVideos);
-            setLoading(false);
-        }, 1000);
+        };
+        load();
     }, []);
 
     const handleVideoSelect = (video: VideoReview) => {
@@ -188,39 +179,21 @@ const AdminVideoReview: React.FC = () => {
         if (!selectedVideo || !reviewAction) return;
 
         setIsProcessing(true);
-
-        // Simulate API call
-        setTimeout(() => {
-            setVideos(prev => prev.map(v => 
-                v.id === selectedVideo.id 
-                    ? {
-                        ...v,
-                        status: reviewAction === 'approve' ? 'approved' : 'rejected',
-                        adminReview: {
-                            decision: reviewAction,
-                            feedback,
-                            reviewedAt: new Date(),
-                            reviewedBy: 'Admin User'
-                        }
-                    }
-                    : v
-            ));
-
-            setSelectedVideo(prev => prev ? {
-                ...prev,
-                status: reviewAction === 'approve' ? 'approved' : 'rejected',
-                adminReview: {
-                    decision: reviewAction,
-                    feedback,
-                    reviewedAt: new Date(),
-                    reviewedBy: 'Admin User'
-                }
-            } : null);
-
+        try {
+            const decision = reviewAction === 'approve' ? 'approved' : 'rejected';
+            await apiService.videoWorkflow.reviewVideo(selectedVideo.id, {
+                decision,
+                feedback: feedback || undefined,
+            });
+            setVideos(prev => prev.filter(v => v.id !== selectedVideo.id));
+            setSelectedVideo(null);
             setReviewAction(null);
             setFeedback('');
+        } catch (error) {
+            console.error('Failed to submit video review:', error);
+        } finally {
             setIsProcessing(false);
-        }, 2000);
+        }
     };
 
     const formatTime = (seconds: number) => {
