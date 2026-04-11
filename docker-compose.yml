@@ -1,0 +1,16 @@
+# Local MongoDB for SESA — run: docker compose up -d
+# Then set USE_LOCAL_DB=1 in backend/.env (or leave MONGO_URI empty when not on Render).
+services:
+  mongo:
+    image: mongo:7
+    container_name: sesa-mongo-local
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - sesa_mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: sesa_db
+
+volumes:
+  sesa_mongo_data:
