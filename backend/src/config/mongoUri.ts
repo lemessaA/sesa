@@ -5,6 +5,8 @@
  * On Render, set MONGO_URI or MONGODB_URI in the dashboard to your Atlas connection string.
  */
 
+import type { ConnectOptions } from 'mongoose';
+
 const LOCAL_DEFAULT = 'mongodb://localhost:27017/sesa_db';
 
 export function ensureMongoUriFromEnv(): void {
@@ -33,9 +35,46 @@ export function maskMongoUri(uri: string): string {
     return uri.replace(/\/\/[^@/]+@/, '//****:****@');
 }
 
-/** Mongoose options suitable for Atlas (mongodb+srv) and local MongoDB. */
-export const MONGOOSE_CONNECT_OPTIONS = {
-    serverSelectionTimeoutMS: 10000,
-    socketTimeoutMS: 45000,
-    connectTimeoutMS: 10000,
-} as const;
+const DEFAULT_SELECTION_MS = 30_000;
+
+/**
+ * Mongoose client options for Atlas and local MongoDB.
+ * For `mongodb+srv://` (Atlas), defaults to IPv4 (`family: 4`) to avoid DNS/IPv6 issues on some networks.
+ * Set `MONGO_DNS_FAMILY=ipv6` to force IPv6, or `MONGO_SERVER_SELECTION_MS` to tune timeouts (ms).
+ */
+export function getMongooseConnectOptions(uri: string): ConnectOptions {
+    const serverSelectionTimeoutMS = Number.parseInt(
+        process.env.MONGO_SERVER_SELECTION_MS || String(DEFAULT_SELECTION_MS),
+        10
+    );
+    const connectTimeoutMS = Math.min(serverSelectionTimeoutMS, 20_000);
+
+    const opts: ConnectOptions = {
+        serverSelectionTimeoutMS,
+        socketTimeoutMS: 45_000,
+        connectTimeoutMS,
+    };
+
+    if (uri.startsWith('mongodb+srv://')) {
+        opts.family = process.env.MONGO_DNS_FAMILY?.toLowerCase() === 'ipv6' ? 6 : 4;
+    }
+
+    return opts;
+}
+
+/** True if mongodb+srv URI has no database path (defaults to "test"). */
+export function mongoSrvUriMissingDbName(uri: string): boolean {
+    if (!uri.startsWith('mongodb+srv://')) return false;
+    const noQuery = uri.split('?')[0];
+    const parts = noQuery.split('/');
+    if (parts.length < 4) return true;
+    const db = parts[3]?.trim();
+    return !db;
+}
+
+export const ATLAS_TROUBLESHOOTING = [
+    'MongoDB Atlas: Project → Network Access → add 0.0.0.0/0 (dev) or your current IP / Render egress.',
+    'Atlas: ensure the cluster is not paused (free tier).',
+    'Connection string: copy from Atlas Connect → Drivers; include /databaseName before ?.',
+    'Optional: set MONGO_DNS_FAMILY=ipv6 if your network requires IPv6 only.',
+].join(' ');

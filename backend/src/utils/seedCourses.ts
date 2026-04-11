@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import Course from '../models/Course.js';
 import User, { UserRole } from '../models/User.js';
-import { getMongoUri, MONGOOSE_CONNECT_OPTIONS } from '../config/mongoUri.js';
+import { getMongoUri, getMongooseConnectOptions } from '../config/mongoUri.js';
 
 dotenv.config();
 
@@ -10,7 +10,7 @@ const seedCourses = async () => {
     const MONGO_URI = getMongoUri();
 
     try {
-        await mongoose.connect(MONGO_URI, { ...MONGOOSE_CONNECT_OPTIONS });
+        await mongoose.connect(MONGO_URI, getMongooseConnectOptions(MONGO_URI));
         console.log('Connected to MongoDB for seeding courses...');
 
         // Find the instructor user

@@ -48,7 +48,9 @@ import { fileURLToPath } from 'url';
 import {
     ensureMongoUriFromEnv,
     maskMongoUri,
-    MONGOOSE_CONNECT_OPTIONS,
+    getMongooseConnectOptions,
+    mongoSrvUriMissingDbName,
+    ATLAS_TROUBLESHOOTING,
 } from './config/mongoUri.js';
 
 // __dirname replacement for ESM
@@ -56,6 +58,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 ensureMongoUriFromEnv();
+
+if (process.env.MONGO_URI && mongoSrvUriMissingDbName(process.env.MONGO_URI)) {
+    logger.warn(
+        '[Database] MONGO_URI uses mongodb+srv without a database name in the path (e.g. ...mongodb.net/sesaApp?...). Data may go to the default "test" database.'
+    );
+}
 
 // ── Validate critical env vars at startup ─────────────────────────────────────
 const REQUIRED_ENV = ['MONGO_URI', 'JWT_SECRET'] as const;
@@ -254,7 +262,7 @@ const connectDB = async (retryCount = 0) => {
 
     try {
         logger.info(`[Database] Connecting to: ${maskedURI} (Attempt ${retryCount + 1})`);
-        await mongoose.connect(MONGO_URI, { ...MONGOOSE_CONNECT_OPTIONS });
+        await mongoose.connect(MONGO_URI, getMongooseConnectOptions(MONGO_URI));
         isDbConnected = true;
         logger.info('✅ Connected to MongoDB');
 
@@ -265,6 +273,9 @@ const connectDB = async (retryCount = 0) => {
         }
     } catch (err: any) {
         logger.error(`❌ MongoDB Connection Failed: ${err.message}`);
+        if (retryCount === 0 && MONGO_URI.includes('mongodb.net')) {
+            logger.warn(`[Database] Atlas checklist: ${ATLAS_TROUBLESHOOTING}`);
+        }
         isDbConnected = false;
 
         if (retryCount < MAX_RETRIES) {
@@ -272,6 +283,7 @@ const connectDB = async (retryCount = 0) => {
             setTimeout(() => connectDB(retryCount + 1), RETRY_DELAY);
         } else {
             logger.error('CRITICAL: Max retries reached. Server will stay in offline mode.');
+            logger.error(`[Database] ${ATLAS_TROUBLESHOOTING}`);
             // Still start the server so health checks and static routes can respond
             if (!server.listening) {
                 server.listen(PORT, () => {

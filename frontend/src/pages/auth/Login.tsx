@@ -114,12 +114,25 @@ const Login: React.FC<LoginProps> = () => {
             navigate(POST_AUTH_PATH, { replace: true });
         } catch (err: unknown) {
             console.error('[Login] Error:', err);
-            const axiosErr = err as { response?: { data?: { message?: string; errors?: { msg?: string }[] } } };
-            const msg =
-                axiosErr.response?.data?.message ||
-                axiosErr.response?.data?.errors?.[0]?.msg ||
+            const axiosErr = err as {
+                response?: {
+                    status?: number;
+                    data?: { message?: string; code?: string; errors?: { msg?: string }[] };
+                };
+            };
+            const data = axiosErr.response?.data;
+            const baseMsg =
+                data?.message ||
+                data?.errors?.[0]?.msg ||
                 'Something went wrong. Please try again.';
-            setError(msg);
+
+            if (data?.code === 'DB_OFFLINE' || axiosErr.response?.status === 503) {
+                setError(
+                    `${baseMsg} If you manage this server: open MongoDB Atlas → Network Access, allow your IP (or 0.0.0.0/0 for testing), confirm the cluster is running, check MONGO_URI in backend/.env, then restart the API.`
+                );
+            } else {
+                setError(baseMsg);
+            }
         } finally {
             setIsLoading(false);
         }

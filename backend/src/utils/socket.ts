@@ -4,12 +4,22 @@ import logger from './logger.js';
 
 let io: SocketIOServer;
 
+/** Match Express CORS: comma-separated list, or SOCKET_CORS_ORIGIN if set. */
+function socketCorsOrigins(): string | string[] | boolean {
+    const raw = process.env.SOCKET_CORS_ORIGIN?.trim() || process.env.CORS_ORIGIN?.trim();
+    if (!raw) return '*';
+    if (raw === '*') return '*';
+    if (raw.includes(',')) return raw.split(',').map((o) => o.trim());
+    return raw;
+}
+
 export const initSocket = (httpServer: HttpServer) => {
     io = new SocketIOServer(httpServer, {
         cors: {
-            origin: process.env.CORS_ORIGIN || '*',
-            methods: ['GET', 'POST']
-        }
+            origin: socketCorsOrigins(),
+            methods: ['GET', 'POST'],
+            credentials: true,
+        },
     });
 
     io.on('connection', (socket: Socket) => {

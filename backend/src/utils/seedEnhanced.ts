@@ -9,14 +9,14 @@ import Payment from '../models/Payment.js';
 import Progress from '../models/Progress.js';
 import Certificate from '../models/Certificate.js';
 import Announcement from '../models/Announcement.js';
-import { getMongoUri, MONGOOSE_CONNECT_OPTIONS } from '../config/mongoUri.js';
+import { getMongoUri, getMongooseConnectOptions } from '../config/mongoUri.js';
 
 dotenv.config();
 
 async function seedDatabase() {
     try {
         const MONGO_URI = getMongoUri();
-        await mongoose.connect(MONGO_URI, { ...MONGOOSE_CONNECT_OPTIONS });
+        await mongoose.connect(MONGO_URI, getMongooseConnectOptions(MONGO_URI));
         console.log('Connected to MongoDB');
 
         // Clear existing data

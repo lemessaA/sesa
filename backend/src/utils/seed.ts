@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import User, { UserRole } from '../models/User.js';
 import dotenv from 'dotenv';
-import { getMongoUri, MONGOOSE_CONNECT_OPTIONS } from '../config/mongoUri.js';
+import { getMongoUri, getMongooseConnectOptions } from '../config/mongoUri.js';
 
 // Simple dotenv load for the seed script
 dotenv.config();
@@ -11,7 +11,7 @@ const seedDB = async () => {
     const MONGO_URI = getMongoUri();
 
     try {
-        await mongoose.connect(MONGO_URI, { ...MONGOOSE_CONNECT_OPTIONS });
+        await mongoose.connect(MONGO_URI, getMongooseConnectOptions(MONGO_URI));
         console.log('Connected to MongoDB for seeding...');
 
         const usersToCreate = [
