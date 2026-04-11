@@ -11,7 +11,7 @@ export interface IPayment extends Document {
   
   // Common fields
   amount: number;
-  paymentMethod: 'stripe' | 'paypal' | 'manual';
+  paymentMethod: 'stripe' | 'paypal' | 'manual' | 'cbe_birr' | 'telebirr' | 'bank_transfer';
   status: 'pending' | 'completed' | 'failed' | 'refunded';
   transactionId: string;
   paymentDate: Date;
@@ -33,7 +33,7 @@ const PaymentSchema: Schema = new Schema({
   
   // Common fields
   amount: { type: Number, required: true, min: 0 },
-  paymentMethod: { type: String, enum: ['stripe', 'paypal', 'manual'], default: 'manual' },
+  paymentMethod: { type: String, enum: ['stripe', 'paypal', 'manual', 'cbe_birr', 'telebirr', 'bank_transfer'], default: 'manual' },
   status: { type: String, enum: ['pending', 'completed', 'failed', 'refunded'], default: 'pending' },
   transactionId: { type: String, required: true, unique: true },
   paymentDate: { type: Date, default: Date.now },
@@ -46,6 +46,6 @@ const PaymentSchema: Schema = new Schema({
 PaymentSchema.index({ userId: 1, courseId: 1 });
 PaymentSchema.index({ user: 1, course: 1 });
 PaymentSchema.index({ status: 1 });
-PaymentSchema.index({ transactionId: 1 });
+// transactionId already has unique: true which creates an index
 
 export default mongoose.model<IPayment>('Payment', PaymentSchema);
