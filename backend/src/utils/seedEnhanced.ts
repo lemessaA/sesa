@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import bcrypt from 'bcryptjs';
 import User, { UserRole } from '../models/User.js';
 import Course from '../models/Course.js';
 import Category from '../models/Category.js';
@@ -10,6 +9,7 @@ import Progress from '../models/Progress.js';
 import Certificate from '../models/Certificate.js';
 import Announcement from '../models/Announcement.js';
 import { getMongoUri, getMongooseConnectOptions } from '../config/mongoUri.js';
+import { hashDemoPassword } from './demoUserPasswords.js';
 
 dotenv.config();
 
@@ -31,132 +31,112 @@ async function seedDatabase() {
 
         console.log('Cleared existing data');
 
-        // Hash password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash('password123', salt);
-
-        // Create users for all roles
-        const users = await User.insertMany([
+        const userSpecs = [
             // Admin Roles
             {
                 name: 'Super Admin',
                 email: 'superadmin@sesa.com',
-                password: hashedPassword,
                 role: UserRole.SUPER_ADMIN,
-                isActive: true,
-                bio: 'System Super Administrator'
+                bio: 'System Super Administrator',
             },
             {
                 name: 'Admin User',
                 email: 'admin@sesa.com',
-                password: hashedPassword,
                 role: UserRole.ADMIN,
-                isActive: true,
-                bio: 'System Administrator'
+                bio: 'System Administrator',
             },
             {
                 name: 'Moderator User',
                 email: 'moderator@sesa.com',
-                password: hashedPassword,
                 role: UserRole.MODERATOR,
-                isActive: true,
-                bio: 'Content Moderator'
+                bio: 'Content Moderator',
             },
             {
                 name: 'Content Manager',
                 email: 'content@sesa.com',
-                password: hashedPassword,
                 role: UserRole.CONTENT_MANAGER,
-                isActive: true,
-                bio: 'Content Management Specialist'
+                bio: 'Content Management Specialist',
             },
             {
                 name: 'Support Staff',
                 email: 'support@sesa.com',
-                password: hashedPassword,
                 role: UserRole.SUPPORT_STAFF,
-                isActive: true,
-                bio: 'Customer Support Representative'
+                bio: 'Customer Support Representative',
             },
 
             // Instructor Roles
             {
                 name: 'Lead Instructor',
                 email: 'instructor@sesa.com',
-                password: hashedPassword,
                 role: UserRole.INSTRUCTOR,
-                isActive: true,
-                bio: 'Senior Course Instructor'
+                bio: 'Senior Course Instructor',
             },
             {
                 name: 'Assistant Instructor',
                 email: 'assistant@sesa.com',
-                password: hashedPassword,
                 role: UserRole.ASSISTANT_INSTRUCTOR,
-                isActive: true,
-                bio: 'Teaching Assistant'
+                bio: 'Teaching Assistant',
             },
             {
                 name: 'Guest Instructor',
                 email: 'guest@sesa.com',
-                password: hashedPassword,
                 role: UserRole.GUEST_INSTRUCTOR,
-                isActive: true,
-                bio: 'Guest Lecturer'
+                bio: 'Guest Lecturer',
             },
 
             // Student Roles
             {
                 name: 'Regular Student',
                 email: 'student@sesa.com',
-                password: hashedPassword,
                 role: UserRole.STUDENT,
-                isActive: true,
-                bio: 'Regular Student Account'
+                bio: 'Regular Student Account',
             },
             {
                 name: 'Premium Student',
                 email: 'premium@sesa.com',
-                password: hashedPassword,
                 role: UserRole.PREMIUM_STUDENT,
-                isActive: true,
-                bio: 'Premium Membership Student'
+                bio: 'Premium Membership Student',
             },
             {
                 name: 'Trial Student',
                 email: 'trial@sesa.com',
-                password: hashedPassword,
                 role: UserRole.TRIAL_STUDENT,
-                isActive: true,
-                bio: 'Trial Period Student'
+                bio: 'Trial Period Student',
             },
 
             // Specialized Roles
             {
                 name: 'Content Reviewer',
                 email: 'reviewer@sesa.com',
-                password: hashedPassword,
                 role: UserRole.REVIEWER,
-                isActive: true,
-                bio: 'Content Review Specialist'
+                bio: 'Content Review Specialist',
             },
             {
                 name: 'Data Analyst',
                 email: 'analyst@sesa.com',
-                password: hashedPassword,
                 role: UserRole.ANALYST,
-                isActive: true,
-                bio: 'Business Intelligence Analyst'
+                bio: 'Business Intelligence Analyst',
             },
             {
                 name: 'Finance Manager',
                 email: 'finance@sesa.com',
-                password: hashedPassword,
                 role: UserRole.FINANCE_MANAGER,
+                bio: 'Financial Operations Manager',
+            },
+        ] as const;
+
+        const usersToInsert = await Promise.all(
+            userSpecs.map(async (spec) => ({
+                name: spec.name,
+                email: spec.email,
+                password: await hashDemoPassword(spec.email),
+                role: spec.role,
                 isActive: true,
-                bio: 'Financial Operations Manager'
-            }
-        ]);
+                bio: spec.bio,
+            }))
+        );
+
+        const users = await User.insertMany(usersToInsert);
 
         console.log('Created users for all 14 roles');
 

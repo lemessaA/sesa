@@ -131,16 +131,23 @@ router.post('/login',
     validate,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { email, password } = req.body;
+            const email = String(req.body.email ?? '').toLowerCase().trim();
+            const password = req.body.password as string;
 
-            // Fetch user with password and refresh tokens
-            // For legacy support, we search for authProvider: 'local' OR where authProvider doesn't exist
-            const user = await User.findOne({ 
-                email, 
-                $or: [{ authProvider: 'local' }, { authProvider: { $exists: false } }] 
-            }).select('+password +refreshTokens');
+            const user = await User.findOne({ email }).select('+password +refreshTokens');
             if (!user) {
                 return next(new AppError('Invalid credentials.', 401));
+            }
+
+            // OAuth-only accounts: clearer than “invalid password”
+            if (user.authProvider === 'google') {
+                return next(new AppError('This account uses Google sign-in. Use “Continue with Google”.', 401));
+            }
+            if (user.authProvider === 'github') {
+                return next(new AppError('This account uses GitHub sign-in. Use “Continue with GitHub”.', 401));
+            }
+            if (!user.password) {
+                return next(new AppError('Password sign-in is not enabled for this account.', 401));
             }
 
             // Check if account is locked
@@ -149,7 +156,7 @@ router.post('/login',
                 return next(new AppError(`Account is locked due to too many failed attempts. Try again after ${unlockTime}.`, 423));
             }
 
-            const isMatch = await bcrypt.compare(password, user.password!);
+            const isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) {
                 // Increment failed attempts
                 const failedAttempts = (user.failedLoginAttempts || 0) + 1;
