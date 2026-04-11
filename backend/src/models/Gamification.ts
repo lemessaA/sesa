@@ -101,6 +101,5 @@ GamificationSchema.pre('save', function(this: any) {
 
 // Indexes for leaderboard queries
 GamificationSchema.index({ totalPoints: -1 });
-GamificationSchema.index({ userId: 1 });
 
 export default mongoose.model<IGamification>('Gamification', GamificationSchema);

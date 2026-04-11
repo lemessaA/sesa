@@ -33,6 +33,21 @@ const createTransporter = () => {
 };
 
 const sendEmail = async (options: EmailOptions): Promise<void> => {
+    const isPlaceholder = !process.env.EMAIL_USER || 
+                        process.env.EMAIL_USER.includes('your_gmail') || 
+                        !process.env.EMAIL_PASS || 
+                        process.env.EMAIL_PASS.includes('your_gmail');
+
+    if (process.env.NODE_ENV !== 'production' && isPlaceholder) {
+        logger.warn('--- DEVELOPMENT EMAIL LOG ---');
+        logger.warn(`To: ${options.to}`);
+        logger.warn(`Subject: ${options.subject}`);
+        logger.warn(`Content (HTML): ${options.html.substring(0, 200)}...`);
+        logger.warn('------------------------------');
+        logger.info(`[Dev Mode] Email to ${options.to} was logged instead of sent because credentials are not configured.`);
+        return;
+    }
+
     const transporter = createTransporter();
     const from = process.env.EMAIL_FROM || `SESA Platform <noreply@sesa.edu>`;
 
