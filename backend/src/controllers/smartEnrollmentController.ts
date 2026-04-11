@@ -185,7 +185,10 @@ export const getLesson = async (req: AuthRequest, res: Response, next: Function)
       return next(new AppError('Course not found', 404));
     }
 
-    const lesson = course.lessons?.find(l => l._id?.toString() === lessonId);
+    const lesson = course.lessons?.find(l => {
+      const lId = (l as any)._id?.toString?.() || (l as any).id?.toString?.();
+      return lId === lessonId;
+    });
     if (!lesson) {
       return next(new AppError('Lesson not found', 404));
     }
