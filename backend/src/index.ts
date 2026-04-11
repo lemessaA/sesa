@@ -45,18 +45,21 @@ import { globalErrorHandler, notFoundHandler } from './middleware/errorHandler.j
 import http from 'http';
 import { initSocket } from './utils/socket.js';
 import { fileURLToPath } from 'url';
-
-// Force local MongoDB for this local setup.
-process.env.MONGO_URI = 'mongodb://localhost:27017/sesa_db';
-process.env.NODE_ENV = 'development';
+import {
+    ensureMongoUriFromEnv,
+    maskMongoUri,
+    MONGOOSE_CONNECT_OPTIONS,
+} from './config/mongoUri.js';
 
 // __dirname replacement for ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+ensureMongoUriFromEnv();
+
 // ── Validate critical env vars at startup ─────────────────────────────────────
-const REQUIRED_ENV = ['MONGO_URI', 'JWT_SECRET'];
-const missing = REQUIRED_ENV.filter(k => !process.env[k]);
+const REQUIRED_ENV = ['MONGO_URI', 'JWT_SECRET'] as const;
+const missing = REQUIRED_ENV.filter((key) => !process.env[key]?.trim());
 if (missing.length > 0) {
     logger.error(`CRITICAL: Missing required environment variables: ${missing.join(', ')}`);
     process.exit(1);
@@ -242,7 +245,7 @@ const server = http.createServer(app);
 initSocket(server);
 
 const MONGO_URI = process.env.MONGO_URI!;
-const maskedURI = MONGO_URI.replace(/\/\/.*@/, '//****:****@');
+const maskedURI = maskMongoUri(MONGO_URI);
 
 
 const connectDB = async (retryCount = 0) => {
@@ -251,12 +254,7 @@ const connectDB = async (retryCount = 0) => {
 
     try {
         logger.info(`[Database] Connecting to: ${maskedURI} (Attempt ${retryCount + 1})`);
-        await mongoose.connect(MONGO_URI, {
-            // Fail fast so retries kick in quickly instead of 30s default
-            serverSelectionTimeoutMS: 10000,
-            socketTimeoutMS: 45000,
-            connectTimeoutMS: 10000,
-        });
+        await mongoose.connect(MONGO_URI, { ...MONGOOSE_CONNECT_OPTIONS });
         isDbConnected = true;
         logger.info('✅ Connected to MongoDB');
 

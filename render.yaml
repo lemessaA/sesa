@@ -25,7 +25,7 @@ services:
       - key: SOCKET_CORS_ORIGIN
         sync: false  # Set this in Render dashboard after getting frontend URL
       - key: MONGO_URI
-        sync: false  # Set your MongoDB Atlas URI in Render dashboard
+        sync: false  # MongoDB Atlas URI (or set MONGODB_URI instead — app accepts both)
       - key: RATE_LIMIT_WINDOW_MS
         value: 900000
       - key: RATE_LIMIT_MAX_REQUESTS
