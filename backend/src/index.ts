@@ -38,6 +38,7 @@ import assignmentRoutes from './routes/assignments.js';
 import gamificationRoutes from './routes/gamification.js';
 import collaborationRoutes from './routes/collaboration.js';
 import advancedAnalyticsRoutes from './routes/advancedAnalytics.js';
+import smartEnrollmentRoutes from './routes/smartEnrollment.js';
 
 // ── Utilities & Middleware ────────────────────────────────────────────────────
 import logger, { morganStream } from './utils/logger.js';
@@ -236,6 +237,7 @@ app.use('/api/assignments', assignmentRoutes);
 app.use('/api/gamification', gamificationRoutes);
 app.use('/api/collaboration', collaborationRoutes);
 app.use('/api/advanced-analytics', advancedAnalyticsRoutes);
+app.use('/api/smart-enrollment', smartEnrollmentRoutes);
 
 // ── Static Files ──────────────────────────────────────────────────────────────
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

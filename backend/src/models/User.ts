@@ -25,6 +25,16 @@ export enum UserRole {
   FINANCE_MANAGER = 'finance_manager'
 }
 
+export interface ICourseEnrollment {
+  courseId: mongoose.Types.ObjectId;
+  enrollmentDate: Date;
+  status: 'active' | 'expired' | 'cancelled';
+  accessLevel: 'free' | 'paid';
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
+  expiresAt?: Date;
+  paymentId?: mongoose.Types.ObjectId;
+}
+
 export interface IUser extends Document {
   // --- Core Fields (existing) ---
   name: string;
@@ -40,6 +50,10 @@ export interface IUser extends Document {
   dateOfBirth?: Date;
   enrolledCourses: mongoose.Types.ObjectId[];
   completedCourses: mongoose.Types.ObjectId[];
+  
+  // --- NEW: Course-specific enrollment (smart enrollment system) ---
+  courseEnrollments: ICourseEnrollment[];
+  
   createdAt: Date;
   updatedAt: Date;
 
@@ -96,6 +110,17 @@ const UserSchema: Schema = new Schema({
   dateOfBirth: { type: Date },
   enrolledCourses: [{ type: Schema.Types.ObjectId, ref: 'Course' }],
   completedCourses: [{ type: Schema.Types.ObjectId, ref: 'Course' }],
+
+  // --- NEW: Course-specific enrollment (smart enrollment system) ---
+  courseEnrollments: [{
+    courseId: { type: Schema.Types.ObjectId, ref: 'Course', required: true },
+    enrollmentDate: { type: Date, default: Date.now },
+    status: { type: String, enum: ['active', 'expired', 'cancelled'], default: 'active' },
+    accessLevel: { type: String, enum: ['free', 'paid'], default: 'free' },
+    approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+    expiresAt: { type: Date },
+    paymentId: { type: Schema.Types.ObjectId, ref: 'Payment' }
+  }],
 
   // --- Email Verification ---
   isEmailVerified: { type: Boolean, default: false },

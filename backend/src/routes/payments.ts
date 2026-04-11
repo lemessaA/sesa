@@ -6,7 +6,8 @@ import {
     getAllPayments,
     refundPayment,
     uploadProof,
-    verifyPayment
+    verifyPayment,
+    processPayment
 } from '../controllers/paymentController.js';
 import { authenticate, checkRole } from '../middleware/auth.js';
 import { UserRole } from '../models/User.js';
@@ -19,6 +20,9 @@ router.post('/create', authenticate, createPayment);
 router.post('/:paymentId/confirm', authenticate, confirmPayment); // Legacy/Auto
 router.post('/:paymentId/upload-proof', authenticate, proofUpload.single('proof'), uploadProof);
 router.get('/my-payments', authenticate, getUserPayments);
+
+// NEW: Course-specific payment endpoint
+router.post('/course/:courseId', authenticate, processPayment);
 
 // Admin routes
 router.get('/all', authenticate, checkRole([UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.FINANCE_MANAGER]), getAllPayments);
