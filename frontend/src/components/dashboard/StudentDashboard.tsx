@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Star, Flame, Zap, TrendingUp, MessageSquare, ClipboardCheck, Award } from 'lucide-react';
 import DashboardLayout from './DashboardLayout';
 import TeacherEvaluation from '../student/TeacherEvaluation';
+import EnrollmentCard from '../EnrollmentCard';
 import apiService from '../../utils/api';
 import GamificationStats from './GamificationStats';
 import AnnouncementBanner from '../AnnouncementBanner';
@@ -24,6 +25,33 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
 }) => {
     const [selectedCourseForEval, setSelectedCourseForEval] = useState<any>(null);
     const [gradebookData, setGradebookData] = useState<Record<string, any[]>>({});
+    const [smartEnrollments, setSmartEnrollments] = useState<any[]>([]);
+    const [loadingEnrollments, setLoadingEnrollments] = useState(false);
+
+    // Fetch smart enrollments
+    useEffect(() => {
+        const fetchSmartEnrollments = async () => {
+            if (!token) return;
+            try {
+                setLoadingEnrollments(true);
+                const response = await fetch(
+                    `${import.meta.env.VITE_API_URL}/smart-enrollment/my-enrollments`,
+                    {
+                        headers: { Authorization: `Bearer ${token}` }
+                    }
+                );
+                if (response.ok) {
+                    const data = await response.json();
+                    setSmartEnrollments(data.enrollments || []);
+                }
+            } catch (err) {
+                console.error('Failed to fetch smart enrollments', err);
+            } finally {
+                setLoadingEnrollments(false);
+            }
+        };
+        fetchSmartEnrollments();
+    }, [token]);
 
     useEffect(() => {
         const fetchAllMarks = async () => {
@@ -80,6 +108,34 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
             <div className="px-4 md:px-8">
                 <GamificationStats />
             </div>
+
+            {/* NEW: My Courses Section with Smart Enrollments */}
+            {smartEnrollments.length > 0 && (
+                <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="mx-3 mt-8 sm:mx-4 md:mx-8"
+                >
+                    <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-6 bg-slate-800/50 w-fit px-4 py-1.5 rounded-full">My Enrolled Courses</h2>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        {smartEnrollments.map((enrollment, index) => (
+                            <motion.div
+                                key={enrollment.courseId}
+                                initial={{ opacity: 0, y: 12 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.05 }}
+                            >
+                                <EnrollmentCard
+                                    enrollment={enrollment}
+                                    courseName={enrollment.courseId?.title || 'Course'}
+                                    coursePrice={enrollment.courseId?.price || 0}
+                                />
+                            </motion.div>
+                        ))}
+                    </div>
+                </motion.div>
+            )}
 
             {/* Course momentum section follows... */}
 

@@ -425,6 +425,15 @@ const BrowseCourses: React.FC = () => {
                                                     Watch Free Previews
                                                 </button>
 
+                                                {/* NEW: Link to CoursePage */}
+                                                <button
+                                                    onClick={() => navigate(`/courses/${course._id}`)}
+                                                    className="inline-flex items-center gap-1 rounded-lg border border-cyan-500/40 bg-cyan-500/20 px-2.5 py-1.5 text-xs font-medium text-cyan-100 hover:bg-cyan-500/30"
+                                                >
+                                                    <PlayCircle className="h-3.5 w-3.5" />
+                                                    View Full Course
+                                                </button>
+
                                                 {isLocked && (
                                                     <button
                                                         onClick={() => requestEnrollment(course)}
