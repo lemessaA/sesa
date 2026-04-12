@@ -35,7 +35,7 @@ const PaymentSchema: Schema = new Schema({
   amount: { type: Number, required: true, min: 0 },
   paymentMethod: { type: String, enum: ['stripe', 'paypal', 'manual', 'cbe_birr', 'telebirr', 'bank_transfer'], default: 'manual' },
   status: { type: String, enum: ['pending', 'completed', 'failed', 'refunded'], default: 'pending' },
-  transactionId: { type: String, required: true, unique: true },
+  transactionId: { type: String, required: true, unique: true, sparse: true },
   paymentDate: { type: Date, default: Date.now },
   expiresAt: { type: Date }, // For subscription-based payments
   proofUrl: { type: String }, // For manual payment proof
@@ -46,6 +46,5 @@ const PaymentSchema: Schema = new Schema({
 PaymentSchema.index({ userId: 1, courseId: 1 });
 PaymentSchema.index({ user: 1, course: 1 });
 PaymentSchema.index({ status: 1 });
-// transactionId already has unique: true which creates an index
 
 export default mongoose.model<IPayment>('Payment', PaymentSchema);

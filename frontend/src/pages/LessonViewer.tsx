@@ -78,7 +78,7 @@ const LessonViewer: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-bg">
+      <div className="min-h-screen flex items-center justify-center bg-light dark:bg-dark-bg">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           <p className="mt-4 text-gray-600 dark:text-gray-400">Loading lesson...</p>
@@ -89,11 +89,13 @@ const LessonViewer: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-bg">
-        <div className="max-w-md w-full bg-white dark:bg-dark-card rounded-lg shadow-md p-6">
+      <div className="min-h-screen flex items-center justify-center bg-light dark:bg-dark-bg">
+        <div className="max-w-md w-full bg-white dark:bg-dark-card rounded-xl shadow-premium dark:shadow-lg p-6 border border-warning/20">
           <div className="flex items-center gap-3 mb-4">
-            <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <div className="p-2 bg-warning/20 rounded-lg">
+              <AlertCircle className="w-6 h-6 text-warning" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
               Access Denied
             </h3>
           </div>
@@ -101,13 +103,13 @@ const LessonViewer: React.FC = () => {
           <div className="flex gap-3">
             <button
               onClick={() => navigate(`/courses/${courseId}`)}
-              className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+              className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition font-medium"
             >
               Back to Course
             </button>
             <button
               onClick={() => navigate(`/payment/${courseId}`)}
-              className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition"
+              className="flex-1 px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg transition font-bold"
             >
               Unlock Course
             </button>
@@ -119,12 +121,12 @@ const LessonViewer: React.FC = () => {
 
   if (!lesson) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-bg">
+      <div className="min-h-screen flex items-center justify-center bg-light dark:bg-dark-bg">
         <div className="text-center">
           <p className="text-gray-600 dark:text-gray-400">Lesson not found</p>
           <button
             onClick={() => navigate(`/courses/${courseId}`)}
-            className="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
+            className="mt-4 px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg transition font-bold"
           >
             Back to Course
           </button>
@@ -134,19 +136,19 @@ const LessonViewer: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg py-8">
+    <div className="min-h-screen bg-light dark:bg-dark-bg py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Back Button */}
         <button
           onClick={() => navigate(`/courses/${courseId}`)}
-          className="mb-6 flex items-center gap-2 text-primary hover:text-primary-dark transition"
+          className="mb-6 flex items-center gap-2 text-primary hover:text-secondary transition font-semibold"
         >
           <ChevronLeft className="w-5 h-5" />
           Back to Course
         </button>
 
         {/* Video Player */}
-        <div className="bg-black rounded-lg overflow-hidden shadow-lg mb-8 aspect-video flex items-center justify-center">
+        <div className="bg-black rounded-xl overflow-hidden shadow-premium dark:shadow-lg mb-8 aspect-video flex items-center justify-center border border-primary/20">
           {lesson.videoUrl ? (
             <video
               src={lesson.videoUrl}
@@ -163,25 +165,25 @@ const LessonViewer: React.FC = () => {
         </div>
 
         {/* Lesson Content */}
-        <div className="bg-white dark:bg-dark-card rounded-lg shadow-md p-8 mb-8">
+        <div className="bg-white dark:bg-dark-card rounded-xl shadow-premium dark:shadow-lg p-8 mb-8 border border-white/20 dark:border-white/5">
           <div className="flex items-center gap-3 mb-4">
-            <span className="text-sm font-semibold text-primary">
+            <span className="text-sm font-bold uppercase tracking-widest text-primary bg-primary/10 px-3 py-1 rounded-full">
               Lesson {lesson.order}
             </span>
             {lesson.isFree && (
-              <span className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded">
-                FREE PREVIEW
+              <span className="text-xs font-bold bg-gradient-to-r from-success to-success/70 text-white px-3 py-1 rounded-full">
+                ✓ FREE PREVIEW
               </span>
             )}
           </div>
 
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+          <h1 className="text-4xl font-black text-gray-900 dark:text-white mb-4">
             {lesson.title}
           </h1>
 
           {lesson.description && (
             <div className="prose dark:prose-invert max-w-none">
-              <p className="text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
+              <p className="text-gray-600 dark:text-gray-400 whitespace-pre-wrap leading-relaxed">
                 {lesson.description}
               </p>
             </div>
@@ -193,7 +195,7 @@ const LessonViewer: React.FC = () => {
           <button
             onClick={handlePreviousLesson}
             disabled={!lesson.previousLessonId}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
           >
             <ChevronLeft className="w-5 h-5" />
             Previous Lesson
@@ -201,7 +203,7 @@ const LessonViewer: React.FC = () => {
 
           <button
             onClick={() => navigate(`/courses/${courseId}`)}
-            className="flex-1 px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+            className="flex-1 px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition font-semibold"
           >
             Course Overview
           </button>
@@ -209,7 +211,7 @@ const LessonViewer: React.FC = () => {
           <button
             onClick={handleNextLesson}
             disabled={!lesson.nextLessonId}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed font-bold"
           >
             Next Lesson
             <ChevronRight className="w-5 h-5" />

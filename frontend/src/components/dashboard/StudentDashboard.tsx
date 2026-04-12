@@ -129,7 +129,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
                                 <EnrollmentCard
                                     enrollment={enrollment}
                                     courseName={enrollment.courseId?.title || 'Course'}
-                                    coursePrice={enrollment.courseId?.price || 0}
                                 />
                             </motion.div>
                         ))}

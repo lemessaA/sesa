@@ -132,66 +132,93 @@ const CoursePage: React.FC = () => {
   const lockedLessons = course.lessons?.filter(l => !l.isAccessible) || [];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg py-8">
+    <div className="min-h-screen bg-light dark:bg-dark-bg py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Course Header */}
-        <div className="bg-white dark:bg-dark-card rounded-lg shadow-md p-6 mb-8">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                {course.title}
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                {course.description}
-              </p>
-              <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                {course.gradeLevel && <span>{course.gradeLevel}</span>}
-                {course.level && <span>•</span>}
-                {course.level && <span className="capitalize">{course.level}</span>}
-                {course.price > 0 && <span>•</span>}
-                {course.price > 0 && <span className="font-semibold text-primary">${course.price}</span>}
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                {course.userAccess.accessLevel === 'paid' ? (
-                  <span className="text-green-600 dark:text-green-400 font-semibold">✓ Enrolled</span>
-                ) : course.userAccess.accessLevel === 'free' ? (
-                  <span className="text-blue-600 dark:text-blue-400 font-semibold">Free Preview</span>
-                ) : (
-                  <span className="text-gray-600 dark:text-gray-400">Not enrolled</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Instructor Info */}
-          {course.instructor && (
-            <div className="flex items-center gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-              {course.instructor.profileImage && (
-                <img
-                  src={course.instructor.profileImage}
-                  alt={course.instructor.name}
-                  className="w-10 h-10 rounded-full"
-                />
-              )}
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Instructor</p>
-                <p className="font-semibold text-gray-900 dark:text-white">
-                  {course.instructor.name}
+        {/* Course Header - Enhanced */}
+        <div className="bg-gradient-to-br from-white via-light to-white dark:from-dark-card dark:via-dark-bg dark:to-dark-card rounded-2xl shadow-premium dark:shadow-lg p-8 mb-8 border border-white/40 dark:border-white/10 relative overflow-hidden">
+          {/* Decorative gradient background */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-primary/10 to-secondary/5 rounded-full -mr-48 -mt-48 blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-accent/10 to-primary/5 rounded-full -ml-48 -mb-48 blur-3xl"></div>
+          
+          <div className="relative z-10">
+            <div className="flex justify-between items-start mb-6">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-1.5 h-10 bg-gradient-to-b from-primary via-secondary to-accent rounded-full shadow-lg"></div>
+                  <h1 className="text-4xl font-black bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
+                    {course.title}
+                  </h1>
+                </div>
+                <p className="text-gray-600 dark:text-gray-300 mb-4 leading-relaxed text-lg">
+                  {course.description}
                 </p>
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  {course.gradeLevel && (
+                    <span className="px-4 py-2 bg-gradient-to-r from-primary/20 to-primary/10 dark:from-primary/30 dark:to-primary/20 text-primary dark:text-success rounded-full font-bold border border-primary/30">
+                      {course.gradeLevel}
+                    </span>
+                  )}
+                  {course.level && (
+                    <span className="px-4 py-2 bg-gradient-to-r from-secondary/20 to-secondary/10 dark:from-secondary/30 dark:to-secondary/20 text-secondary dark:text-accent rounded-full font-bold border border-secondary/30 capitalize">
+                      {course.level}
+                    </span>
+                  )}
+                  {course.price > 0 && (
+                    <span className="px-4 py-2 bg-gradient-to-r from-warning/20 to-warning/10 dark:from-warning/30 dark:to-warning/20 text-warning font-bold rounded-full border border-warning/30">
+                      ${course.price}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="text-right ml-4">
+                <div className="text-sm mb-2">
+                  {course.userAccess.accessLevel === 'paid' ? (
+                    <span className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-success to-success/70 text-white rounded-full font-bold shadow-lg">
+                      <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                      ✓ Enrolled
+                    </span>
+                  ) : course.userAccess.accessLevel === 'free' ? (
+                    <span className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-full font-bold shadow-lg">
+                      <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                      Free Preview
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full font-bold">
+                      Not enrolled
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          )}
+
+            {/* Instructor Info - Enhanced */}
+            {course.instructor && (
+              <div className="flex items-center gap-4 pt-6 border-t border-gray-200 dark:border-white/10">
+                {course.instructor.profileImage && (
+                  <img
+                    src={course.instructor.profileImage}
+                    alt={course.instructor.name}
+                    className="w-14 h-14 rounded-full border-2 border-gradient-to-r from-primary to-secondary shadow-lg"
+                  />
+                )}
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Instructor</p>
+                  <p className="font-bold text-lg text-gray-900 dark:text-white">
+                    {course.instructor.name}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2">
             {selectedLesson && selectedLesson.isAccessible ? (
-              <div className="bg-white dark:bg-dark-card rounded-lg shadow-md overflow-hidden">
+              <div className="bg-white dark:bg-dark-card rounded-xl shadow-premium dark:shadow-lg overflow-hidden border border-white/20 dark:border-white/5">
                 {/* Video Player */}
-                <div className="bg-black aspect-video flex items-center justify-center">
+                <div className="bg-black aspect-video flex items-center justify-center relative group">
                   {selectedLesson.videoUrl ? (
                     <video
                       src={selectedLesson.videoUrl}
@@ -209,29 +236,31 @@ const CoursePage: React.FC = () => {
                 {/* Lesson Info */}
                 <div className="p-6">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm font-semibold text-primary">
+                    <span className="text-sm font-bold uppercase tracking-widest text-primary bg-primary/10 px-3 py-1 rounded-full">
                       Lesson {selectedLesson.order}
                     </span>
                     {selectedLesson.isFree && (
-                      <span className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded">
-                        FREE PREVIEW
+                      <span className="text-xs font-bold bg-gradient-to-r from-success to-success/70 text-white px-3 py-1 rounded-full">
+                        ✓ FREE PREVIEW
                       </span>
                     )}
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                  <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-4">
                     {selectedLesson.title}
                   </h2>
                   {selectedLesson.description && (
-                    <p className="text-gray-600 dark:text-gray-400">
+                    <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                       {selectedLesson.description}
                     </p>
                   )}
                 </div>
               </div>
             ) : (
-              <div className="bg-white dark:bg-dark-card rounded-lg shadow-md p-12 text-center">
-                <Lock className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="bg-gradient-to-br from-white to-light dark:from-dark-card dark:to-dark-bg rounded-xl shadow-premium dark:shadow-lg p-12 text-center border border-white/20 dark:border-white/5">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-warning/20 rounded-full mb-4">
+                  <Lock className="w-8 h-8 text-warning" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                   Content Locked
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">
@@ -239,7 +268,7 @@ const CoursePage: React.FC = () => {
                 </p>
                 <button
                   onClick={handleUnlock}
-                  className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition"
+                  className="px-8 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg transition font-bold"
                 >
                   Unlock Full Course
                 </button>
@@ -249,9 +278,9 @@ const CoursePage: React.FC = () => {
 
           {/* Sidebar - Lessons List */}
           <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-dark-card rounded-lg shadow-md overflow-hidden sticky top-4">
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="font-semibold text-gray-900 dark:text-white">
+            <div className="bg-white dark:bg-dark-card rounded-xl shadow-premium dark:shadow-lg overflow-hidden sticky top-4 border border-white/20 dark:border-white/5">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-primary/5 to-secondary/5 dark:from-primary/10 dark:to-secondary/10">
+                <h3 className="font-bold text-gray-900 dark:text-white text-lg">
                   Course Content
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -265,24 +294,24 @@ const CoursePage: React.FC = () => {
                   <button
                     key={lesson._id}
                     onClick={() => handleLessonClick(lesson)}
-                    className={`w-full text-left p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition ${
+                    className={`w-full text-left p-4 border-b border-gray-200 dark:border-gray-700 transition ${
                       selectedLesson?._id === lesson._id
-                        ? 'bg-primary bg-opacity-10 border-l-4 border-l-primary'
-                        : ''
+                        ? 'bg-gradient-to-r from-primary/20 to-secondary/10 dark:from-primary/30 dark:to-secondary/20 border-l-4 border-l-primary'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <Play className="w-4 h-4 mt-1 text-primary flex-shrink-0" />
+                      <Play className="w-4 h-4 mt-1 text-primary flex-shrink-0 font-bold" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
                           {lesson.title}
                         </p>
                         <p className="text-xs text-gray-600 dark:text-gray-400">
                           Lesson {lesson.order}
                         </p>
                         {lesson.isFree && (
-                          <span className="text-xs text-green-600 dark:text-green-400">
-                            Free
+                          <span className="text-xs font-bold text-success">
+                            ✓ Free
                           </span>
                         )}
                       </div>
@@ -293,18 +322,18 @@ const CoursePage: React.FC = () => {
                 {/* Locked Lessons */}
                 {lockedLessons.length > 0 && (
                   <>
-                    <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-700">
-                      <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
-                        Locked Content
+                    <div className="px-4 py-3 bg-gradient-to-r from-warning/10 to-warning/5 dark:from-warning/20 dark:to-warning/10 border-t border-gray-200 dark:border-gray-700">
+                      <p className="text-xs font-bold text-warning uppercase tracking-widest">
+                        🔒 Locked Content
                       </p>
                     </div>
                     {lockedLessons.map((lesson) => (
                       <div
                         key={lesson._id}
-                        className="p-4 border-b border-gray-200 dark:border-gray-700 opacity-60"
+                        className="p-4 border-b border-gray-200 dark:border-gray-700 opacity-60 hover:opacity-80 transition"
                       >
                         <div className="flex items-start gap-3">
-                          <Lock className="w-4 h-4 mt-1 text-gray-400 flex-shrink-0" />
+                          <Lock className="w-4 h-4 mt-1 text-warning flex-shrink-0" />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                               {lesson.title}
@@ -322,15 +351,15 @@ const CoursePage: React.FC = () => {
 
               {/* Unlock Button */}
               {course.canUnlock && course.userAccess.accessLevel !== 'paid' && (
-                <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+                <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gradient-to-r from-primary/10 to-secondary/5 dark:from-primary/20 dark:to-secondary/10">
                   <button
                     onClick={handleUnlock}
-                    className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition font-medium flex items-center justify-center gap-2"
+                    className="w-full px-4 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg transition font-bold flex items-center justify-center gap-2"
                   >
                     Unlock Full Course
                     <ChevronRight className="w-4 h-4" />
                   </button>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 text-center mt-2">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 text-center mt-3 font-bold">
                     ${course.price}
                   </p>
                 </div>

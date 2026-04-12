@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Lock, CheckCircle, Clock } from 'lucide-react';
+import { BookOpen, Lock, CheckCircle, Clock, ChevronRight } from 'lucide-react';
 
 interface Enrollment {
   courseId: string;
@@ -14,14 +14,12 @@ interface EnrollmentCardProps {
   enrollment: Enrollment;
   courseName?: string;
   courseImage?: string;
-  coursePrice?: number;
 }
 
 const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   enrollment,
   courseName = 'Course',
   courseImage,
-  coursePrice = 0,
 }) => {
   const navigate = useNavigate();
   const [progress, setProgress] = useState(0);
@@ -37,7 +35,7 @@ const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   const getAccessBadge = () => {
     if (enrollment.accessLevel === 'paid') {
       return (
-        <div className="flex items-center gap-1 px-3 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-full text-sm font-medium">
+        <div className="flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-success to-success/70 text-white rounded-full text-sm font-bold">
           <CheckCircle className="w-4 h-4" />
           Full Access
         </div>
@@ -45,7 +43,7 @@ const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
     }
     if (enrollment.accessLevel === 'free') {
       return (
-        <div className="flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm font-medium">
+        <div className="flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-primary to-secondary text-white rounded-full text-sm font-bold">
           <BookOpen className="w-4 h-4" />
           Free Preview
         </div>
@@ -72,15 +70,16 @@ const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   });
 
   return (
-    <div className="bg-white dark:bg-dark-card rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
+    <div className="bg-white dark:bg-dark-card rounded-xl shadow-premium dark:shadow-lg overflow-hidden hover:shadow-premium-hover transition border border-white/20 dark:border-white/5">
       {/* Course Image */}
       {courseImage && (
-        <div className="h-40 bg-gradient-to-br from-primary/20 to-primary/5 overflow-hidden">
+        <div className="h-40 bg-gradient-to-br from-primary/30 via-secondary/20 to-accent/10 overflow-hidden relative">
           <img
             src={courseImage}
             alt={courseName}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover opacity-90 hover:opacity-100 transition"
           />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
         </div>
       )}
 
@@ -89,14 +88,14 @@ const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 line-clamp-2">
               {courseName}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Enrolled {formattedDate}
             </p>
           </div>
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 ml-2">
             {getStatusIcon()}
           </div>
         </div>
@@ -109,31 +108,31 @@ const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         {/* Progress Bar */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
               Progress
             </span>
-            <span className="text-sm text-gray-600 dark:text-gray-400">
+            <span className="text-sm font-bold text-primary">
               {progress}%
             </span>
           </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
             <div
-              className="bg-primary h-full rounded-full transition-all duration-500"
+              className="bg-gradient-to-r from-primary to-secondary h-full rounded-full transition-all duration-500 shadow-lg"
               style={{ width: `${progress}%` }}
             />
           </div>
         </div>
 
         {/* Status Info */}
-        <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+        <div className="mb-4 p-3 bg-gradient-to-br from-primary/5 to-secondary/5 dark:from-primary/10 dark:to-secondary/10 rounded-lg border border-primary/10 dark:border-primary/20">
           <p className="text-xs text-gray-600 dark:text-gray-400">
-            <span className="font-semibold">Status:</span>{' '}
-            <span className="capitalize">{enrollment.status}</span>
+            <span className="font-bold text-gray-900 dark:text-white">Status:</span>{' '}
+            <span className="capitalize font-semibold text-primary">{enrollment.status}</span>
           </p>
           {enrollment.approvalStatus && (
             <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-              <span className="font-semibold">Approval:</span>{' '}
-              <span className="capitalize">{enrollment.approvalStatus}</span>
+              <span className="font-bold text-gray-900 dark:text-white">Approval:</span>{' '}
+              <span className="capitalize font-semibold text-secondary">{enrollment.approvalStatus}</span>
             </p>
           )}
         </div>
@@ -141,9 +140,10 @@ const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         {/* Action Button */}
         <button
           onClick={() => navigate(`/courses/${enrollment.courseId}`)}
-          className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition font-medium"
+          className="w-full px-4 py-2.5 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg transition font-bold flex items-center justify-center gap-2"
         >
           {progress > 0 ? 'Continue Learning' : 'Start Course'}
+          <ChevronRight className="w-4 h-4" />
         </button>
       </div>
     </div>
