@@ -18,6 +18,8 @@ import Dashboard from "./pages/Dashboard";
 import FAQ from "./pages/FAQ";
 import Marketplace from "./pages/Marketplace";
 import Payment from "./pages/Payment";
+import CoursePage from "./pages/CoursePage";
+import LessonViewer from "./pages/LessonViewer";
 import BrowseCourses from "./pages/student/BrowseCourses";
 import Certificates from "./pages/student/Certificates";
 import Resources from "./pages/student/Resources";
@@ -41,7 +43,7 @@ import "./styles/accessibility.css";
 const AppRoutes: React.FC = () => {
     const location = useLocation();
     const { isAuthenticated, isLoading } = useAuth();
-    const isAppContent = ['/dashboard', '/student', '/instructor', '/admin', '/payment'].some(path => location.pathname.startsWith(path));
+    const isAppContent = ['/dashboard', '/student', '/instructor', '/admin', '/payment', '/courses'].some(path => location.pathname.startsWith(path));
     const showPublicChrome = isAuthenticated && !isAppContent;
 
     if (isLoading) {
@@ -244,6 +246,32 @@ const AppRoutes: React.FC = () => {
                         element={
                             <ProtectedRoute allowedRoles={[UserRole.ADMIN]} wrapLayout>
                                 <Settings />
+                            </ProtectedRoute>
+                        }
+                    />
+
+                    {/* Smart Enrollment Routes - NEW */}
+                    <Route
+                        path="/courses/:courseId"
+                        element={
+                            <ProtectedRoute wrapLayout>
+                                <CoursePage />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/courses/:courseId/lesson/:lessonId"
+                        element={
+                            <ProtectedRoute wrapLayout>
+                                <LessonViewer />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/payment/:courseId"
+                        element={
+                            <ProtectedRoute wrapLayout>
+                                <Payment />
                             </ProtectedRoute>
                         }
                     />
