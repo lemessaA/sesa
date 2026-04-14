@@ -50,13 +50,14 @@ const Payment: React.FC = () => {
         setLoading(true);
 
         try {
-            // 1. Create Payment record
+            // 1. Create Payment record and Enrollment request
             const createRes = await axios.post(
                 `${API_URL}/payments/create`,
                 {
                     courseId,
                     paymentMethod: provider,
-                    amount: course.price
+                    amount: course.price,
+                    transactionId: transactionId || undefined
                 },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -80,19 +81,12 @@ const Payment: React.FC = () => {
                 );
             }
 
-            // 3. Create Enrollment Request (to signify pending state in the UI)
-            await axios.post(
-                `${API_URL}/enrollments/request/${courseId}`,
-                { 
-                    paymentMethod: provider,
-                    transactionId: transactionId
-                },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            // Note: Enrollment request is now created automatically in the payment creation step
 
             showSuccess('Payment details submitted! Enrollment pending admin verification.');
             setStep('success');
         } catch (error: any) {
+            console.error('Payment submission error:', error);
             showError(error?.response?.data?.message || 'Failed to submit payment details');
         } finally {
             setLoading(false);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -333,6 +334,15 @@ const AdminCourses: React.FC = () => {
                                                     <RefreshCw className="w-4 h-4 animate-spin text-slate-500" />
                                                 ) : (
                                                     <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        {/* Preview Course */}
+                                                        <Link
+                                                            to={`/courses/${course._id}`}
+                                                            className="inline-flex items-center gap-1 px-2 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg text-xs font-medium hover:bg-blue-500 hover:text-white transition-all"
+                                                            title="Preview Course (Interactive)"
+                                                        >
+                                                            <Eye className="w-3 h-3" />
+                                                            Preview
+                                                        </Link>
                                                         {/* Approve */}
                                                         {course.status === 'pending' && (
                                                             <ActionBtn icon={<CheckCircle className="w-4 h-4" />} label="Approve" color="emerald" onClick={() => handleApprove(course)} />

@@ -281,15 +281,26 @@ export const getEnrollmentsForVerification = async (req: AuthRequest, res: Respo
                     course: enrollment.course._id
                 });
 
+                const paymentMetadata = {
+                    method: payment?.paymentMethod || enrollment.paymentMethod || 'bank_transfer',
+                    transactionId: payment?.transactionId || enrollment.transactionId,
+                    proofUrl: payment?.proofUrl || payment?.receiptImage || enrollment.paymentProofUrl
+                };
+
+                // Debug logging
+                console.log(`Enrollment ${enrollment._id}:`, {
+                    hasPayment: !!payment,
+                    paymentProofUrl: payment?.proofUrl,
+                    paymentReceiptImage: payment?.receiptImage,
+                    enrollmentProofUrl: enrollment.paymentProofUrl,
+                    finalProofUrl: paymentMetadata.proofUrl
+                });
+
                 return {
                     enrollment,
                     payment,
                     // Provide fallback metadata from enrollment if payment record is missing
-                    paymentMetadata: {
-                        method: payment?.paymentMethod || enrollment.paymentMethod || 'bank_transfer',
-                        transactionId: payment?.transactionId || enrollment.transactionId,
-                        proofUrl: payment?.receiptImage || enrollment.paymentProofUrl
-                    },
+                    paymentMetadata,
                     requiresVerification: payment ? payment.status === 'pending' : true
                 };
             })
@@ -500,6 +511,41 @@ export const getTeacherPublishedCourses = async (req: AuthRequest, res: Response
         res.json(publishedCourses);
     } catch (error) {
         console.error('Get teacher published courses error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+/**
+ * @route   GET /api/admin/enrollments/debug
+ * @desc    Debug endpoint to check enrollment and payment data
+ * @access  Private (Admin Only)
+ */
+export const debugEnrollmentData = async (req: AuthRequest, res: Response) => {
+    try {
+        const enrollments = await Enrollment.find().populate('user', 'name email').populate('course', 'title');
+        const payments = await Payment.find();
+        
+        res.json({
+            enrollments: enrollments.map(e => ({
+                _id: e._id,
+                user: e.user,
+                course: e.course,
+                status: e.status,
+                paymentProofUrl: e.paymentProofUrl,
+                transactionId: e.transactionId
+            })),
+            payments: payments.map(p => ({
+                _id: p._id,
+                user: p.user || p.userId,
+                course: p.course || p.courseId,
+                status: p.status,
+                proofUrl: p.proofUrl,
+                receiptImage: p.receiptImage,
+                transactionId: p.transactionId
+            }))
+        });
+    } catch (error) {
+        console.error('Debug enrollment data error:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };

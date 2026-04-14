@@ -38,6 +38,8 @@ const Approvals: React.FC = () => {
         studentName?: string;
         courseTitle?: string;
     } | null>(null);
+    const [previewActionLoading, setPreviewActionLoading] = useState<'approve' | 'reject' | null>(null);
+    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
     const coursePlayerWrapRef = useRef<HTMLDivElement>(null);
 
@@ -53,9 +55,49 @@ const Approvals: React.FC = () => {
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+    // URL construction helper function to build full API URLs from relative paths
+    const constructImageUrl = (relativePath: string): string => {
+        if (!relativePath || relativePath === '/') return '';
+        if (relativePath.startsWith('http')) return relativePath; // Already full URL
+        
+        // Remove leading slash if present to avoid double slashes
+        const cleanPath = relativePath.startsWith('/') ? relativePath.slice(1) : relativePath;
+        
+        // Handle empty path after cleaning
+        if (!cleanPath) return '';
+        
+        // Encode URI components to handle special characters like spaces
+        const encodedPath = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+        
+        return `${API_URL}/${encodedPath}`;
+    };
+
     useEffect(() => {
         fetchData();
     }, [activeTab]);
+
+    // Keyboard shortcuts for payment preview modal
+    useEffect(() => {
+        if (!selectedPaymentPreview) return;
+
+        const handleKeyPress = (e: KeyboardEvent) => {
+            if (e.key.toLowerCase() === 'a' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                e.preventDefault();
+                handleApproveEnrollment(selectedPaymentPreview.enrollmentId, selectedPaymentPreview.paymentId);
+                setSelectedPaymentPreview(null);
+            } else if (e.key.toLowerCase() === 'r' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                e.preventDefault();
+                handleRejectEnrollment(selectedPaymentPreview.enrollmentId, selectedPaymentPreview.paymentId);
+                setSelectedPaymentPreview(null);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                setSelectedPaymentPreview(null);
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyPress);
+        return () => document.removeEventListener('keydown', handleKeyPress);
+    }, [selectedPaymentPreview]);
 
     const fetchData = async () => {
         try {
@@ -69,6 +111,7 @@ const Approvals: React.FC = () => {
                 const res = await axios.get(`${API_URL}/course-management/admin/enrollments/verification`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
+                console.log('Enrollment data received:', res.data); // Debug logging
                 setEnrollments(res.data);
             }
         } catch (err) {
@@ -81,6 +124,7 @@ const Approvals: React.FC = () => {
 
     const handleApproveEnrollment = async (enrollmentId: string, paymentId?: string) => {
         try {
+            setPreviewActionLoading('approve');
             if (paymentId) {
                 await axios.patch(
                     `${API_URL}/payments/${paymentId}/verify`,
@@ -99,6 +143,8 @@ const Approvals: React.FC = () => {
             fetchData();
         } catch (err: any) {
             showError(err.response?.data?.message || 'Failed to verify enrollment');
+        } finally {
+            setPreviewActionLoading(null);
         }
     };
 
@@ -107,6 +153,7 @@ const Approvals: React.FC = () => {
         if (comment === null) return;
 
         try {
+            setPreviewActionLoading('reject');
             if (paymentId) {
                 await axios.patch(
                     `${API_URL}/payments/${paymentId}/verify`,
@@ -124,6 +171,8 @@ const Approvals: React.FC = () => {
             fetchData();
         } catch (err: any) {
             showError(err.response?.data?.message || 'Failed to reject enrollment');
+        } finally {
+            setPreviewActionLoading(null);
         }
     };
 
@@ -246,6 +295,17 @@ const Approvals: React.FC = () => {
                                     const data = isEnrollment ? item.enrollment : item;
                                     const paymentMeta = isEnrollment ? item.paymentMetadata : null;
                                     
+                                    // Debug logging for enrollment items
+                                    if (isEnrollment) {
+                                        console.log(`Rendering enrollment ${index}:`, {
+                                            enrollmentId: data._id,
+                                            paymentMeta,
+                                            hasPayment: !!item.payment,
+                                            paymentProofUrl: item.payment?.proofUrl,
+                                            paymentReceiptImage: item.payment?.receiptImage
+                                        });
+                                    }
+                                    
                                     const title1 = isEnrollment ? data.user?.name : data.title;
                                     const subtitle1 = isEnrollment ? data.user?.email : (data.category?.name || 'Uncategorized');
                                     const title2 = isEnrollment ? data.course?.title : data.instructor?.name;
@@ -293,33 +353,54 @@ const Approvals: React.FC = () => {
                                                                     ID: {paymentMeta.transactionId}
                                                                 </div>
                                                             )}
-                                                            {item.payment?.receiptImage && (
+                                                            {(paymentMeta?.proofUrl || item.payment?.receiptImage || item.payment?.proofUrl) && (
                                                                 <button
                                                                     onClick={() =>
                                                                         setSelectedPaymentPreview({
-                                                                            proofUrl: item.payment.receiptImage,
+                                                                            proofUrl: paymentMeta?.proofUrl || item.payment?.receiptImage || item.payment?.proofUrl,
                                                                             enrollmentId: data._id,
                                                                             paymentId: item.payment?._id,
                                                                             studentName: data.user?.name,
                                                                             courseTitle: data.course?.title,
                                                                         })
                                                                     }
-                                                                    className="mt-1 flex items-center gap-2 text-xs text-blue-400 hover:text-blue-300 transition-colors w-fit font-bold"
+                                                                    className="mt-1 flex items-center gap-2 text-xs text-blue-400 hover:text-blue-300 transition-colors w-fit font-bold hover:bg-blue-500/10 px-2 py-1 rounded-lg"
                                                                 >
-                                                                    <img
-                                                                        src={item.payment.receiptImage}
-                                                                        alt="Receipt thumbnail"
-                                                                        className="h-10 w-14 rounded-md border border-[#1d3f7a] object-cover"
-                                                                    />
+                                                                    <div className="relative">
+                                                                        <img
+                                                                            src={constructImageUrl(paymentMeta?.proofUrl || item.payment?.receiptImage || item.payment?.proofUrl || '')}
+                                                                            alt="Receipt thumbnail"
+                                                                            className="h-10 w-14 rounded-md border border-[#1d3f7a] object-cover bg-slate-800"
+                                                                            onError={(e) => {
+                                                                                // Enhanced fallback with better error handling
+                                                                                const img = e.target as HTMLImageElement;
+                                                                                if (!img.dataset.fallbackAttempted) {
+                                                                                    img.dataset.fallbackAttempted = 'true';
+                                                                                    img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA1NiA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjU2IiBoZWlnaHQ9IjQwIiBmaWxsPSIjMUYyOTM3IiBzdHJva2U9IiM0NzU1NjkiIHN0cm9rZS13aWR0aD0iMSIvPgo8cGF0aCBkPSJNMjggMjBMMjIgMjZIMzRMMjggMjBaIiBmaWxsPSIjNjM3NDhBIi8+CjxjaXJjbGUgY3g9IjIzIiBjeT0iMTYiIHI9IjIiIGZpbGw9IiM2Mzc0OEEiLz4KPC9zdmc+';
+                                                                                    img.classList.add('opacity-60');
+                                                                                    img.title = 'Failed to load receipt image';
+                                                                                }
+                                                                            }}
+                                                                        />
+                                                                        <div className="absolute inset-0 bg-blue-500/20 opacity-0 hover:opacity-100 transition-opacity rounded-md flex items-center justify-center">
+                                                                            <Eye className="w-4 h-4 text-white" />
+                                                                        </div>
+                                                                    </div>
                                                                     <span className="inline-flex items-center gap-1">
                                                                         <ImageIcon className="w-3.5 h-3.5" />
                                                                         Preview Receipt
                                                                     </span>
                                                                 </button>
                                                             )}
-                                                            {item.payment?.receiptImage && (
+                                                            {!(paymentMeta?.proofUrl || item.payment?.receiptImage || item.payment?.proofUrl) && paymentMeta?.transactionId && (
+                                                                <div className="mt-1 flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 px-2 py-1 rounded-lg border border-amber-500/20">
+                                                                    <ImageIcon className="w-3.5 h-3.5" />
+                                                                    <span>No receipt uploaded</span>
+                                                                </div>
+                                                            )}
+                                                            {(paymentMeta?.proofUrl || item.payment?.receiptImage || item.payment?.proofUrl) && (
                                                                 <div className="text-[10px] font-semibold text-slate-500">
-                                                                    Source: payment.receiptImage
+                                                                    Source: {item.payment?.receiptImage || item.payment?.proofUrl ? 'payment record' : 'enrollment record'}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -520,11 +601,31 @@ const Approvals: React.FC = () => {
                         className="w-full max-w-5xl overflow-hidden rounded-[1.25rem] border border-[#14305f] bg-[#0a1630] shadow-2xl sm:rounded-[2rem]"
                     >
                         <div className="flex items-start justify-between gap-3 border-b border-[#14305f] px-4 py-3 sm:items-center sm:px-6 sm:py-4">
-                            <div>
+                            <div className="flex-1">
                                 <h3 className="text-xl font-black text-white">Receipt Verification</h3>
-                                <p className="text-sm text-slate-400">
-                                    {selectedPaymentPreview.studentName || 'Student'} · {selectedPaymentPreview.courseTitle || 'Course'}
-                                </p>
+                                <div className="mt-1 space-y-1">
+                                    <p className="text-sm text-slate-400">
+                                        <span className="font-semibold text-slate-300">{selectedPaymentPreview.studentName || 'Student'}</span> · {selectedPaymentPreview.courseTitle || 'Course'}
+                                    </p>
+                                    {/* Find the enrollment data to show payment method and transaction ID */}
+                                    {(() => {
+                                        const enrollmentData = enrollments.find(e => e.enrollment._id === selectedPaymentPreview.enrollmentId);
+                                        const paymentMeta = enrollmentData?.paymentMetadata;
+                                        return paymentMeta && (
+                                            <div className="flex items-center gap-4 text-xs text-slate-500">
+                                                {paymentMeta.method && (
+                                                    <span className="flex items-center gap-1">
+                                                        <CreditCard className="w-3 h-3" />
+                                                        {paymentMeta.method.toUpperCase()}
+                                                    </span>
+                                                )}
+                                                {paymentMeta.transactionId && (
+                                                    <span>ID: {paymentMeta.transactionId}</span>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
                             </div>
                             <button
                                 onClick={() => setSelectedPaymentPreview(null)}
@@ -535,34 +636,85 @@ const Approvals: React.FC = () => {
                         </div>
 
                         <div className="max-h-[65vh] overflow-auto bg-[#050b17] p-3 sm:p-4">
-                            <img
-                                src={selectedPaymentPreview.proofUrl}
-                                alt="Payment receipt preview"
-                                className="mx-auto max-h-[58vh] w-auto max-w-full rounded-2xl border border-slate-800"
-                            />
+                            <div className="relative">
+                                <img
+                                    src={constructImageUrl(selectedPaymentPreview.proofUrl)}
+                                    alt="Payment receipt preview"
+                                    className="mx-auto max-h-[58vh] w-auto max-w-full rounded-2xl border border-slate-800 bg-slate-900"
+                                    onError={(e) => {
+                                        // Enhanced error handling for preview modal
+                                        const img = e.target as HTMLImageElement;
+                                        if (!img.dataset.fallbackAttempted) {
+                                            img.dataset.fallbackAttempted = 'true';
+                                            img.style.display = 'none';
+                                            const errorDiv = img.nextElementSibling as HTMLElement;
+                                            if (errorDiv) {
+                                                errorDiv.style.display = 'flex';
+                                                // Add the original URL to the error message for debugging
+                                                const urlInfo = errorDiv.querySelector('.url-info');
+                                                if (!urlInfo) {
+                                                    const urlElement = document.createElement('p');
+                                                    urlElement.className = 'url-info text-xs text-slate-500 mt-2 font-mono break-all';
+                                                    urlElement.textContent = `Failed URL: ${img.src}`;
+                                                    errorDiv.appendChild(urlElement);
+                                                }
+                                            }
+                                        }
+                                    }}
+                                />
+                                <div 
+                                    className="hidden flex-col items-center justify-center min-h-[300px] text-slate-400 bg-slate-900 rounded-2xl border border-slate-800"
+                                    style={{ display: 'none' }}
+                                >
+                                    <ImageIcon className="w-16 h-16 mb-4 opacity-50" />
+                                    <p className="text-lg font-semibold mb-2">Unable to load image</p>
+                                    <p className="text-sm text-center max-w-md">
+                                        The receipt image could not be displayed. You can try opening it in a new tab using the "Open Full Size" button below.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#14305f] px-4 py-3 sm:px-6 sm:py-4">
-                            <a
-                                href={selectedPaymentPreview.proofUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-2 rounded-xl border border-[#1d3f7a] bg-[#050b17] px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-[#60a5fa]"
-                            >
-                                <ExternalLink className="h-4 w-4" />
-                                Open Full Size
-                            </a>
+                            <div className="flex items-center gap-3">
+                                <a
+                                    href={constructImageUrl(selectedPaymentPreview.proofUrl)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-2 rounded-xl border border-[#1d3f7a] bg-[#050b17] px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-[#60a5fa]"
+                                >
+                                    <ExternalLink className="h-4 w-4" />
+                                    Open Full Size
+                                </a>
+                                <div className="hidden sm:block text-xs text-slate-500">
+                                    Press <kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-400">A</kbd> to approve, <kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-400">R</kbd> to reject
+                                </div>
+                            </div>
                             <div className="flex items-center gap-2">
                                 <button
-                                    onClick={() => handleRejectEnrollment(selectedPaymentPreview.enrollmentId, selectedPaymentPreview.paymentId)}
-                                    className="rounded-xl border border-rose-500 bg-rose-500/10 px-4 py-2 text-sm font-bold text-rose-300 transition hover:bg-rose-500 hover:text-white"
+                                    onClick={() => {
+                                        handleRejectEnrollment(selectedPaymentPreview.enrollmentId, selectedPaymentPreview.paymentId);
+                                        setSelectedPaymentPreview(null);
+                                    }}
+                                    disabled={previewActionLoading !== null}
+                                    className="rounded-xl border border-rose-500 bg-rose-500/10 px-4 py-2 text-sm font-bold text-rose-300 transition hover:bg-rose-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                 >
+                                    {previewActionLoading === 'reject' && (
+                                        <div className="w-4 h-4 border-2 border-rose-300 border-t-transparent rounded-full animate-spin" />
+                                    )}
                                     Reject
                                 </button>
                                 <button
-                                    onClick={() => handleApproveEnrollment(selectedPaymentPreview.enrollmentId, selectedPaymentPreview.paymentId)}
-                                    className="rounded-xl border border-emerald-500 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-300 transition hover:bg-emerald-500 hover:text-white"
+                                    onClick={() => {
+                                        handleApproveEnrollment(selectedPaymentPreview.enrollmentId, selectedPaymentPreview.paymentId);
+                                        setSelectedPaymentPreview(null);
+                                    }}
+                                    disabled={previewActionLoading !== null}
+                                    className="rounded-xl border border-emerald-500 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-300 transition hover:bg-emerald-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                 >
+                                    {previewActionLoading === 'approve' && (
+                                        <div className="w-4 h-4 border-2 border-emerald-300 border-t-transparent rounded-full animate-spin" />
+                                    )}
                                     Accept
                                 </button>
                             </div>

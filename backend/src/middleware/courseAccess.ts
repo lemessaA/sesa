@@ -30,17 +30,21 @@ export const checkCourseAccess = (courseIdParam: string = 'courseId') => {
         return res.status(404).json({ message: 'Course not found' });
       }
 
+      // Check if user is admin - admins get full access for preview purposes
+      const userRole = req.user?.role;
+      const isAdmin = userRole === 'admin' || userRole === 'super_admin' || userRole === 'moderator';
+
       // Initialize access info
       const accessInfo: CourseAccessInfo = {
         courseId,
-        hasPaidAccess: false,
-        hasApprovedAccess: false,
-        enrollmentStatus: 'none',
-        accessLevel: 'free'
+        hasPaidAccess: isAdmin, // Admins get full access
+        hasApprovedAccess: isAdmin, // Admins get full access
+        enrollmentStatus: isAdmin ? 'paid' : 'none',
+        accessLevel: isAdmin ? 'paid' : 'free'
       };
 
-      // If user is authenticated, check their enrollment
-      if (req.user) {
+      // If user is authenticated and not admin, check their enrollment
+      if (req.user && !isAdmin) {
         const user = await User.findById(req.user.id).select('courseEnrollments');
         
         if (user && user.courseEnrollments) {

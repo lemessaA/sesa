@@ -19,7 +19,7 @@ import userRoutes from './routes/users.js';
 import categoryRoutes from './routes/categories.js';
 import adminRoutes from './routes/admin.js';
 import announcementRoutes from './routes/announcements.js';
-import enrollmentRoutes from './routes/enrollments.js';
+import enrollmentRoutes from './routes/enrollmentRoutes.js';
 import progressRoutes from './routes/progress.js';
 import paymentRoutes from './routes/payments.js';
 import analyticsRoutes from './routes/analytics.js';

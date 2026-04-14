@@ -14,7 +14,8 @@ import {
     verifyEnrollmentAndGrantAccess,
     rejectEnrollmentRequest,
     getTeacherPendingCourses,
-    getTeacherPublishedCourses
+    getTeacherPublishedCourses,
+    debugEnrollmentData
 } from '../controllers/courseManagementController.js';
 import { allowFreePreview, requireFullAccess, requireCourseManagement } from '../middleware/freePreviewAccess.js';
 
@@ -167,6 +168,17 @@ router.get('/admin/enrollments/verification',
     authenticate,
     checkRole([UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.MODERATOR]),
     getEnrollmentsForVerification
+);
+
+/**
+ * @route   GET /api/admin/enrollments/debug
+ * @desc    Debug endpoint to check enrollment and payment data
+ * @access  Private (Admin Only)
+ */
+router.get('/admin/enrollments/debug',
+    authenticate,
+    checkRole([UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.MODERATOR]),
+    debugEnrollmentData
 );
 
 /**

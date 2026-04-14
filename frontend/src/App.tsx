@@ -7,7 +7,7 @@ import { LanguageProvider } from "./context/LanguageContext";
 import { useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
-import AnnouncementBanner from "./components/AnnouncementBanner";
+
 import GlobalPopup from "./components/GlobalPopup";
 import Footer from "./components/Footer";
 import BackToTop from "./components/BackToTop";
@@ -60,7 +60,6 @@ const AppRoutes: React.FC = () => {
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-dark-bg transition-colors duration-300 flex flex-col">
             {showPublicChrome && <Navbar />}
-            {showPublicChrome && <AnnouncementBanner />}
             {isAuthenticated && <GlobalPopup />}
             <main className="flex-grow">
                 <Routes>

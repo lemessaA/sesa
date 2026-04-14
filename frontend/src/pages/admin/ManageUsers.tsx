@@ -7,12 +7,14 @@ import {
     ArrowLeft,
     BookOpen,
     Check,
+    Edit3,
     GraduationCap,
     Megaphone,
     RefreshCw,
     Search,
     Send,
     Shield,
+    Trash2,
     UserCog,
     X,
 } from 'lucide-react';
@@ -106,6 +108,8 @@ const ManageUsers: React.FC = () => {
     const [announcementTargetRole, setAnnouncementTargetRole] = useState<'student' | 'instructor' | 'both'>('both');
     const [isCreatingAnnouncement, setIsCreatingAnnouncement] = useState(false);
     const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(true);
+    const [editingAnnouncement, setEditingAnnouncement] = useState<string | null>(null);
+    const [editForm, setEditForm] = useState({ message: '', targetRole: 'both' as 'student' | 'instructor' | 'both' });
 
     const authHeaders = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
 
@@ -255,6 +259,50 @@ const ManageUsers: React.FC = () => {
         } finally {
             setIsCreatingAnnouncement(false);
         }
+    };
+
+    const handleEditAnnouncement = async (id: string): Promise<void> => {
+        try {
+            await axios.put(
+                `${API_URL}/announcements/${id}`,
+                editForm,
+                { headers: authHeaders }
+            );
+            toast.success('Announcement updated successfully');
+            setEditingAnnouncement(null);
+            fetchAnnouncements();
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || 'Failed to update announcement');
+        }
+    };
+
+    const handleDeleteAnnouncement = async (id: string, message: string): Promise<void> => {
+        if (!window.confirm(`Are you sure you want to delete this announcement: "${message.substring(0, 50)}..."?`)) {
+            return;
+        }
+
+        try {
+            await axios.delete(`${API_URL}/announcements/${id}`, {
+                headers: authHeaders
+            });
+            toast.success('Announcement deleted successfully');
+            fetchAnnouncements();
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || 'Failed to delete announcement');
+        }
+    };
+
+    const startEdit = (announcement: AnnouncementRecord): void => {
+        setEditingAnnouncement(announcement._id);
+        setEditForm({
+            message: announcement.message,
+            targetRole: announcement.targetRole
+        });
+    };
+
+    const cancelEdit = (): void => {
+        setEditingAnnouncement(null);
+        setEditForm({ message: '', targetRole: 'both' });
     };
 
     const filteredUsers = useMemo(() => {
@@ -518,10 +566,69 @@ const ManageUsers: React.FC = () => {
                                     key={announcement._id}
                                     className="rounded-xl border border-slate-700 bg-slate-900/45 px-3 py-2"
                                 >
-                                    <p className="text-sm text-white">{announcement.message}</p>
-                                    <p className="mt-1 text-[11px] text-slate-300">
-                                        Target: {announcement.targetRole} • {new Date(announcement.createdAt).toLocaleString()}
-                                    </p>
+                                    {editingAnnouncement === announcement._id ? (
+                                        // Edit Mode
+                                        <div className="space-y-3">
+                                            <div className="flex gap-2">
+                                                <select
+                                                    value={editForm.targetRole}
+                                                    onChange={(e) => setEditForm({ ...editForm, targetRole: e.target.value as any })}
+                                                    className="rounded-lg border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-slate-100 focus:border-blue-400 focus:outline-none"
+                                                >
+                                                    <option value="both">Everyone</option>
+                                                    <option value="student">Students</option>
+                                                    <option value="instructor">Instructors</option>
+                                                </select>
+                                                <button
+                                                    onClick={() => handleEditAnnouncement(announcement._id)}
+                                                    className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors"
+                                                >
+                                                    <Check className="w-3 h-3" />
+                                                    Save
+                                                </button>
+                                                <button
+                                                    onClick={cancelEdit}
+                                                    className="flex items-center gap-1 px-2 py-1 bg-gray-600 text-white rounded-lg text-xs font-medium hover:bg-gray-700 transition-colors"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                            <textarea
+                                                value={editForm.message}
+                                                onChange={(e) => setEditForm({ ...editForm, message: e.target.value })}
+                                                rows={2}
+                                                className="w-full rounded-lg border border-slate-600 bg-slate-800 px-2 py-1 text-sm text-slate-100 focus:border-blue-400 focus:outline-none resize-none"
+                                                placeholder="Enter announcement message..."
+                                            />
+                                        </div>
+                                    ) : (
+                                        // View Mode
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="flex-1">
+                                                <p className="text-sm text-white">{announcement.message}</p>
+                                                <p className="mt-1 text-[11px] text-slate-300">
+                                                    Target: {announcement.targetRole} • {new Date(announcement.createdAt).toLocaleString()}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={() => startEdit(announcement)}
+                                                    className="p-1 text-blue-400 hover:bg-blue-900/20 rounded transition-colors"
+                                                    title="Edit announcement"
+                                                >
+                                                    <Edit3 className="w-3 h-3" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteAnnouncement(announcement._id, announcement.message)}
+                                                    className="p-1 text-red-400 hover:bg-red-900/20 rounded transition-colors"
+                                                    title="Delete announcement"
+                                                >
+                                                    <Trash2 className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ))
                         )}

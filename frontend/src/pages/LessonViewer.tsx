@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ChevronLeft, ChevronRight, Lock, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertCircle, Play } from 'lucide-react';
+import { extractYoutubeVideoId, getYoutubeEmbedUrl, isLikelyDirectVideoFileUrl } from '../utils/youtube';
 
 interface Lesson {
   _id: string;
@@ -150,16 +151,65 @@ const LessonViewer: React.FC = () => {
         {/* Video Player */}
         <div className="bg-black rounded-xl overflow-hidden shadow-premium dark:shadow-lg mb-8 aspect-video flex items-center justify-center border border-primary/20">
           {lesson.videoUrl ? (
-            <video
-              src={lesson.videoUrl}
-              controls
-              autoPlay
-              className="w-full h-full"
-            />
+            (() => {
+              // Check if it's a YouTube URL using the utility function
+              const youtubeId = extractYoutubeVideoId(lesson.videoUrl);
+              
+              if (youtubeId) {
+                return (
+                  <iframe
+                    src={getYoutubeEmbedUrl(youtubeId)}
+                    title={lesson.title}
+                    className="w-full h-full"
+                    style={{ border: 0 }}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                );
+              } else if (isLikelyDirectVideoFileUrl(lesson.videoUrl)) {
+                return (
+                  <video
+                    src={lesson.videoUrl}
+                    controls
+                    autoPlay
+                    controlsList="nodownload"
+                    className="w-full h-full object-contain"
+                  />
+                );
+              } else {
+                // Fallback for other video URLs - try as direct video first, then iframe
+                return (
+                  <video
+                    src={lesson.videoUrl}
+                    controls
+                    autoPlay
+                    controlsList="nodownload"
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      // If video fails to load, try as iframe
+                      const videoElement = e.target as HTMLVideoElement;
+                      const container = videoElement.parentElement;
+                      if (container) {
+                        container.innerHTML = `
+                          <iframe
+                            src="${lesson.videoUrl}"
+                            title="${lesson.title}"
+                            className="w-full h-full"
+                            frameBorder="0"
+                            allowFullScreen
+                          />
+                        `;
+                      }
+                    }}
+                  />
+                );
+              }
+            })()
           ) : (
-            <div className="text-white text-center">
-              <Lock className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <p>Video not available</p>
+            <div className="text-white text-center p-6">
+              <Play className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <p className="text-lg font-semibold">Video not available</p>
+              <p className="text-sm text-gray-400 mt-2">Check back soon for video content</p>
             </div>
           )}
         </div>

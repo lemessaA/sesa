@@ -121,4 +121,63 @@ router.put(
     }
 );
 
+// Edit announcement endpoint
+router.put(
+    '/:id',
+    authenticate,
+    checkRole([UserRole.ADMIN, UserRole.MODERATOR]),
+    [
+        body('message', 'Message is required').trim().isLength({ min: 1, max: 500 }),
+        body('targetRole', 'targetRole must be student, instructor, or both').isIn(['student', 'instructor', 'both']),
+        body('isActive').optional().isBoolean(),
+    ],
+    validate,
+    async (req: AuthRequest, res: Response) => {
+        try {
+            const { message, targetRole, isActive } = req.body;
+            
+            const announcement = await Announcement.findById(req.params.id);
+            if (!announcement) {
+                return res.status(404).json({ message: 'Announcement not found' });
+            }
+
+            // Update the announcement
+            announcement.message = message;
+            announcement.targetRole = targetRole;
+            if (typeof isActive === 'boolean') {
+                announcement.isActive = isActive;
+            }
+            
+            await announcement.save();
+            await announcement.populate('createdBy', 'name role');
+
+            res.json({ message: 'Announcement updated successfully', announcement });
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ message: 'Server error' });
+        }
+    }
+);
+
+// Delete announcement endpoint
+router.delete(
+    '/:id',
+    authenticate,
+    checkRole([UserRole.ADMIN, UserRole.MODERATOR]),
+    async (req: AuthRequest, res: Response) => {
+        try {
+            const announcement = await Announcement.findById(req.params.id);
+            if (!announcement) {
+                return res.status(404).json({ message: 'Announcement not found' });
+            }
+
+            await Announcement.findByIdAndDelete(req.params.id);
+            res.json({ message: 'Announcement deleted successfully' });
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ message: 'Server error' });
+        }
+    }
+);
+
 export default router;

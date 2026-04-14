@@ -1,0 +1,9 @@
+# Add these lines to your .gitignore to prevent committing AI prompts to GitHub
+
+# AI Development Prompts (Local Use Only)
+AI_PROMPT_*.md
+AI_PROMPTS_*.md
+COPY_PASTE_PROMPTS.md
+
+# These files contain detailed implementation guidance and should not be committed
+# They are for local AI development with Lovable and Cursor only

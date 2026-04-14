@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Lock, Play, ChevronRight } from 'lucide-react';
+import { extractYoutubeVideoId, getYoutubeEmbedUrl, isLikelyDirectVideoFileUrl } from '../utils/youtube';
 
 interface Lesson {
   _id: string;
@@ -97,7 +98,7 @@ const CoursePage: React.FC = () => {
   const handleLessonClick = (lesson: Lesson) => {
     if (lesson.isAccessible) {
       setSelectedLesson(lesson);
-      navigate(`/courses/${courseId}/lesson/${lesson._id}`);
+      // Don't navigate, just update selected lesson for inline viewing
     }
   };
 
@@ -212,23 +213,70 @@ const CoursePage: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           {/* Main Content */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 w-full">
             {selectedLesson && selectedLesson.isAccessible ? (
               <div className="bg-white dark:bg-dark-card rounded-xl shadow-premium dark:shadow-lg overflow-hidden border border-white/20 dark:border-white/5">
-                {/* Video Player */}
-                <div className="bg-black aspect-video flex items-center justify-center relative group">
+                {/* Video Player - Fully Interactive */}
+                <div className="bg-black w-full aspect-video flex items-center justify-center relative group cursor-pointer hover:bg-gray-900 transition">
                   {selectedLesson.videoUrl ? (
-                    <video
-                      src={selectedLesson.videoUrl}
-                      controls
-                      className="w-full h-full"
-                    />
+                    (() => {
+                      // Check if it's a YouTube URL using the utility function
+                      const youtubeId = extractYoutubeVideoId(selectedLesson.videoUrl);
+                      
+                      if (youtubeId) {
+                        return (
+                          <iframe
+                            src={getYoutubeEmbedUrl(youtubeId)}
+                            title={selectedLesson.title}
+                            className="w-full h-full"
+                            style={{ border: 0 }}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        );
+                      } else if (isLikelyDirectVideoFileUrl(selectedLesson.videoUrl)) {
+                        return (
+                          <video
+                            src={selectedLesson.videoUrl}
+                            controls
+                            controlsList="nodownload"
+                            className="w-full h-full object-contain"
+                          />
+                        );
+                      } else {
+                        // Fallback for other video URLs - try as direct video first, then iframe
+                        return (
+                          <video
+                            src={selectedLesson.videoUrl}
+                            controls
+                            controlsList="nodownload"
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              // If video fails to load, try as iframe
+                              const videoElement = e.target as HTMLVideoElement;
+                              const container = videoElement.parentElement;
+                              if (container) {
+                                container.innerHTML = `
+                                  <iframe
+                                    src="${selectedLesson.videoUrl}"
+                                    title="${selectedLesson.title}"
+                                    style="width: 100%; height: 100%; border: 0;"
+                                    allowFullScreen
+                                  />
+                                `;
+                              }
+                            }}
+                          />
+                        );
+                      }
+                    })()
                   ) : (
-                    <div className="text-white text-center">
-                      <Play className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                      <p>Video not available</p>
+                    <div className="text-white text-center p-6 hover:scale-105 transition">
+                      <Play className="w-16 h-16 mx-auto mb-4 opacity-50 group-hover:opacity-75 transition" />
+                      <p className="text-lg font-semibold">Video not available</p>
+                      <p className="text-sm text-gray-400 mt-2">Check back soon for video content</p>
                     </div>
                   )}
                 </div>
@@ -277,7 +325,7 @@ const CoursePage: React.FC = () => {
           </div>
 
           {/* Sidebar - Lessons List */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 w-full">
             <div className="bg-white dark:bg-dark-card rounded-xl shadow-premium dark:shadow-lg overflow-hidden sticky top-4 border border-white/20 dark:border-white/5">
               <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-primary/5 to-secondary/5 dark:from-primary/10 dark:to-secondary/10">
                 <h3 className="font-bold text-gray-900 dark:text-white text-lg">
@@ -288,16 +336,16 @@ const CoursePage: React.FC = () => {
                 </p>
               </div>
 
-              <div className="max-h-96 overflow-y-auto">
+              <div className="max-h-[calc(100vh-300px)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
                 {/* Accessible Lessons */}
                 {accessibleLessons.map((lesson) => (
                   <button
                     key={lesson._id}
                     onClick={() => handleLessonClick(lesson)}
-                    className={`w-full text-left p-4 border-b border-gray-200 dark:border-gray-700 transition ${
+                    className={`w-full text-left p-4 border-b border-gray-200 dark:border-gray-700 transition active:scale-95 ${
                       selectedLesson?._id === lesson._id
-                        ? 'bg-gradient-to-r from-primary/20 to-secondary/10 dark:from-primary/30 dark:to-secondary/20 border-l-4 border-l-primary'
-                        : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                        ? 'bg-gradient-to-r from-primary/20 to-secondary/10 dark:from-primary/30 dark:to-secondary/20 border-l-4 border-l-primary shadow-md'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-700 active:bg-gray-100 dark:active:bg-gray-600'
                     }`}
                   >
                     <div className="flex items-start gap-3">

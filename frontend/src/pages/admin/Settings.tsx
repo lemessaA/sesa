@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { showSuccess, showError } from '../../utils/toast';
 import axios from 'axios';
-import { ArrowLeft, Settings as SettingsIcon, Plus, Trash2, Megaphone, Send, Users } from 'lucide-react';
+import { ArrowLeft, Settings as SettingsIcon, Plus, Trash2, Megaphone, Send, Users, Edit3, X, Check } from 'lucide-react';
 
 interface Category {
     _id: string;
@@ -14,13 +14,29 @@ interface Category {
     isActive: boolean;
 }
 
+interface Announcement {
+    _id: string;
+    message: string;
+    targetRole: 'student' | 'instructor' | 'both';
+    isActive: boolean;
+    createdAt: string;
+    createdBy: {
+        name: string;
+        role: string;
+    };
+}
+
 const Settings: React.FC = () => {
     const navigate = useNavigate();
     const { token } = useAuth();
     const [categories, setCategories] = useState<Category[]>([]);
+    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     const [newCategory, setNewCategory] = useState({ name: '', description: '', icon: '' });
+    const [editingAnnouncement, setEditingAnnouncement] = useState<string | null>(null);
+    const [editForm, setEditForm] = useState({ message: '', targetRole: 'both' as 'student' | 'instructor' | 'both' });
     
     // Broadcast state
     const [broadcast, setBroadcast] = useState({
@@ -33,6 +49,65 @@ const Settings: React.FC = () => {
     const [sendingBroadcast, setSendingBroadcast] = useState(false);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+    const fetchAnnouncements = async () => {
+        try {
+            setLoadingAnnouncements(true);
+            const response = await axios.get(`${API_URL}/announcements?scope=all`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setAnnouncements(response.data || []);
+        } catch (err) {
+            console.error('Error fetching announcements:', err);
+            showError('Failed to load announcements');
+        } finally {
+            setLoadingAnnouncements(false);
+        }
+    };
+
+    const handleEditAnnouncement = async (id: string) => {
+        try {
+            const response = await axios.put(
+                `${API_URL}/announcements/${id}`,
+                editForm,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            showSuccess('Announcement updated successfully');
+            setEditingAnnouncement(null);
+            fetchAnnouncements();
+        } catch (err: any) {
+            showError(err.response?.data?.message || 'Failed to update announcement');
+        }
+    };
+
+    const handleDeleteAnnouncement = async (id: string, message: string) => {
+        if (!window.confirm(`Are you sure you want to delete this announcement: "${message.substring(0, 50)}..."?`)) {
+            return;
+        }
+
+        try {
+            await axios.delete(`${API_URL}/announcements/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            showSuccess('Announcement deleted successfully');
+            fetchAnnouncements();
+        } catch (err: any) {
+            showError(err.response?.data?.message || 'Failed to delete announcement');
+        }
+    };
+
+    const startEdit = (announcement: Announcement) => {
+        setEditingAnnouncement(announcement._id);
+        setEditForm({
+            message: announcement.message,
+            targetRole: announcement.targetRole
+        });
+    };
+
+    const cancelEdit = () => {
+        setEditingAnnouncement(null);
+        setEditForm({ message: '', targetRole: 'both' });
+    };
 
     const handleBroadcast = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -75,6 +150,8 @@ const Settings: React.FC = () => {
             showSuccess(`Broadcast sent successfully to ${broadcast.targetRole === 'all' ? 'all users' : broadcast.targetRole + 's'}!`);
             // Reset form
             setBroadcast({ title: '', message: '', targetRole: 'all', link: '', type: 'announcement' });
+            // Refresh announcements list
+            fetchAnnouncements();
         } catch (err: any) {
             showError(err.response?.data?.message || 'Failed to send broadcast. Please try again.');
         } finally {
@@ -84,6 +161,7 @@ const Settings: React.FC = () => {
 
     useEffect(() => {
         fetchCategories();
+        fetchAnnouncements();
     }, []);
 
     const fetchCategories = async () => {
@@ -294,6 +372,121 @@ const Settings: React.FC = () => {
                                 </button>
                             </form>
                         </div>
+                    </div>
+
+                    {/* Announcements Management Section */}
+                    <div className="mt-8 bg-white dark:bg-dark-card rounded-2xl border border-gray-100 dark:border-gray-800 p-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                                <Megaphone className="w-5 h-5 text-blue-600" />
+                            </div>
+                            <h2 className="text-lg font-bold text-dark-bg dark:text-white">Manage Announcements</h2>
+                        </div>
+
+                        {loadingAnnouncements ? (
+                            <div className="text-center py-8 text-gray-500">Loading announcements...</div>
+                        ) : announcements.length === 0 ? (
+                            <div className="text-center py-8 text-gray-500">No announcements found</div>
+                        ) : (
+                            <div className="space-y-4">
+                                {announcements.map((announcement) => (
+                                    <div
+                                        key={announcement._id}
+                                        className="p-4 border border-gray-100 dark:border-gray-800 rounded-xl hover:border-primary/50 transition-colors"
+                                    >
+                                        {editingAnnouncement === announcement._id ? (
+                                            // Edit Mode
+                                            <div className="space-y-4">
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 block">Target Role</label>
+                                                        <select
+                                                            value={editForm.targetRole}
+                                                            onChange={(e) => setEditForm({ ...editForm, targetRole: e.target.value as any })}
+                                                            className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-bg text-sm font-medium focus:ring-2 focus:ring-primary outline-none"
+                                                        >
+                                                            <option value="both">Everyone</option>
+                                                            <option value="student">Students</option>
+                                                            <option value="instructor">Instructors</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="flex items-end gap-2">
+                                                        <button
+                                                            onClick={() => handleEditAnnouncement(announcement._id)}
+                                                            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+                                                        >
+                                                            <Check className="w-4 h-4" />
+                                                            Save
+                                                        </button>
+                                                        <button
+                                                            onClick={cancelEdit}
+                                                            className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 transition-colors"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 block">Message</label>
+                                                    <textarea
+                                                        value={editForm.message}
+                                                        onChange={(e) => setEditForm({ ...editForm, message: e.target.value })}
+                                                        rows={3}
+                                                        className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-bg text-sm font-medium focus:ring-2 focus:ring-primary outline-none resize-none"
+                                                        placeholder="Enter announcement message..."
+                                                    />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            // View Mode
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-3 mb-2">
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                                            announcement.targetRole === 'both' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' :
+                                                            announcement.targetRole === 'student' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                                                            'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                                        }`}>
+                                                            {announcement.targetRole === 'both' ? 'Everyone' : 
+                                                             announcement.targetRole === 'student' ? 'Students' : 'Instructors'}
+                                                        </span>
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                                            announcement.isActive ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                                                            'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                                                        }`}>
+                                                            {announcement.isActive ? 'Active' : 'Inactive'}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-sm text-dark-bg dark:text-white font-medium mb-2">
+                                                        {announcement.message}
+                                                    </p>
+                                                    <div className="text-xs text-gray-500">
+                                                        Created by {announcement.createdBy.name} • {new Date(announcement.createdAt).toLocaleDateString()}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => startEdit(announcement)}
+                                                        className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                        title="Edit announcement"
+                                                    >
+                                                        <Edit3 className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteAnnouncement(announcement._id, announcement.message)}
+                                                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                        title="Delete announcement"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Platform Info */}

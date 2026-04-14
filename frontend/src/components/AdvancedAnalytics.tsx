@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, Users, Brain, AlertTriangle, Target, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import apiService from '../utils/api';
@@ -73,7 +73,7 @@ const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({ courseId, userRol
         }
     };
 
-    const getRiskColor = (riskLevel: string) => {
+    const getRiskColor = (riskLevel: string): string => {
         switch (riskLevel) {
             case 'high': return '#ef4444';
             case 'medium': return '#f59e0b';
@@ -184,6 +184,105 @@ const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({ courseId, userRol
                 </div>
             )}
 
+            {/* Payment Preview Section - Admin Only */}
+            {userRole === 'admin' && (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg shadow p-6 border border-green-200 dark:border-green-800">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                            <span className="text-2xl">💳</span> Payment Overview
+                        </h3>
+                        <span className="px-3 py-1 bg-green-200 dark:bg-green-800 text-green-900 dark:text-green-100 rounded-full text-sm font-bold">
+                            Admin View
+                        </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-green-200 dark:border-green-700"
+                        >
+                            <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Total Revenue</p>
+                            <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                                ${realtimeMetrics?.totalRevenue || '0'}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                                {realtimeMetrics?.totalTransactions || 0} transactions
+                            </p>
+                        </motion.div>
+
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 }}
+                            className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-green-200 dark:border-green-700"
+                        >
+                            <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Pending Payments</p>
+                            <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
+                                ${realtimeMetrics?.pendingAmount || '0'}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                                {realtimeMetrics?.pendingCount || 0} pending
+                            </p>
+                        </motion.div>
+
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                            className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-green-200 dark:border-green-700"
+                        >
+                            <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Failed Payments</p>
+                            <p className="text-3xl font-bold text-red-600 dark:text-red-400">
+                                ${realtimeMetrics?.failedAmount || '0'}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                                {realtimeMetrics?.failedCount || 0} failed
+                            </p>
+                        </motion.div>
+                    </div>
+
+                    {/* Recent Payments Table */}
+                    <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg overflow-hidden border border-green-200 dark:border-green-700">
+                        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                            <h4 className="font-semibold text-gray-900 dark:text-white">Recent Transactions</h4>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="bg-gray-50 dark:bg-gray-700">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left font-bold text-gray-900 dark:text-white">User</th>
+                                        <th className="px-6 py-3 text-left font-bold text-gray-900 dark:text-white">Course</th>
+                                        <th className="px-6 py-3 text-left font-bold text-gray-900 dark:text-white">Amount</th>
+                                        <th className="px-6 py-3 text-left font-bold text-gray-900 dark:text-white">Status</th>
+                                        <th className="px-6 py-3 text-left font-bold text-gray-900 dark:text-white">Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                    {realtimeMetrics?.recentPayments?.slice(0, 5).map((payment: any, idx: number) => (
+                                        <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                                            <td className="px-6 py-4 text-gray-900 dark:text-white font-medium">{payment.userName}</td>
+                                            <td className="px-6 py-4 text-gray-600 dark:text-gray-400">{payment.courseName}</td>
+                                            <td className="px-6 py-4 font-bold text-green-600 dark:text-green-400">${payment.amount}</td>
+                                            <td className="px-6 py-4">
+                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                                    payment.status === 'completed' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100' :
+                                                    payment.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-100' :
+                                                    'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100'
+                                                }`}>
+                                                    {payment.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-gray-600 dark:text-gray-400">{new Date(payment.date).toLocaleDateString()}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Tab Navigation */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
                 <div className="border-b border-gray-200 dark:border-gray-700">
@@ -243,12 +342,12 @@ const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({ courseId, userRol
                                             cx="50%"
                                             cy="50%"
                                             labelLine={false}
-                                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                            label={({ name, percent = 0 }) => `${name} ${(percent * 100).toFixed(0)}%`}
                                             outerRadius={80}
                                             fill="#8884d8"
                                             dataKey="value"
                                         >
-                                            {[0, 1, 2].map((entry, index) => (
+                                            {[0, 1, 2].map((index) => (
                                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                             ))}
                                         </Pie>

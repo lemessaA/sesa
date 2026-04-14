@@ -14,7 +14,7 @@ import logger from '../utils/logger.js';
 // Create payment intent
 export const createPayment = async (req: AuthRequest, res: Response) => {
     try {
-        const { courseId, paymentMethod, amount } = req.body;
+        const { courseId, paymentMethod, amount, transactionId } = req.body;
         const userId = req.user!.id;
 
         const course = await Course.findById(courseId);
@@ -33,6 +33,31 @@ export const createPayment = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ message: 'Already enrolled in this course' });
         }
 
+        // Check if there's already a pending enrollment (not rejected)
+        const pendingEnrollment = await Enrollment.findOne({
+            user: userId,
+            course: courseId,
+            status: 'pending'
+        });
+
+        if (pendingEnrollment) {
+            return res.status(400).json({ message: 'Enrollment request already pending' });
+        }
+
+        // If there's a rejected enrollment, delete it to allow resubmission
+        await Enrollment.deleteOne({
+            user: userId,
+            course: courseId,
+            status: 'rejected'
+        });
+
+        // Also clean up any failed/rejected payments for this user and course
+        await Payment.deleteMany({
+            user: userId,
+            course: courseId,
+            status: { $in: ['failed', 'rejected'] }
+        });
+
         // Create payment record
         const payment = new Payment({
             user: userId,
@@ -40,14 +65,27 @@ export const createPayment = async (req: AuthRequest, res: Response) => {
             amount: amount || course.price,
             paymentMethod,
             status: 'pending',
-            transactionId: `TXN-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+            transactionId: transactionId || `TXN-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
         });
 
         await payment.save();
 
+        // Create enrollment record
+        const enrollment = new Enrollment({
+            user: userId,
+            course: courseId,
+            status: 'pending',
+            paymentMethod,
+            transactionId: payment.transactionId,
+            requestedAt: new Date()
+        });
+
+        await enrollment.save();
+
         res.status(201).json({
-            message: 'Payment initiated',
+            message: 'Payment initiated and enrollment request created',
             payment,
+            enrollment,
             clientSecret: payment.transactionId // In real app, this would be Stripe client secret
         });
     } catch (error) {
@@ -226,7 +264,9 @@ export const uploadProof = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ message: 'Unauthorized' });
         }
 
-        payment.proofUrl = `/uploads/${req.file.filename}`;
+        const imageUrl = `/uploads/${req.file.filename}`;
+        payment.proofUrl = imageUrl;
+        payment.receiptImage = imageUrl; // Also store in receiptImage for compatibility
         await payment.save();
 
         res.json({ message: 'Proof uploaded successfully', payment });

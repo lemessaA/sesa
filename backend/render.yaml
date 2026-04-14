@@ -2,6 +2,7 @@ services:
   - type: web
     name: sesa-backend
     env: node
+    region: oregon
     plan: free
     buildCommand: npm run render-build
     startCommand: npm run render-start
@@ -10,5 +11,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 5000
-      - fromGroup: sesa-backend-secrets
+        generateValue: true
+    scaling:
+      minInstances: 1
+      maxInstances: 1

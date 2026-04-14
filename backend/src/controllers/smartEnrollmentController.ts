@@ -44,6 +44,7 @@ export const checkCourseAccessLevel = async (req: AuthRequest, res: Response, ne
   try {
     const { courseId } = req.params;
     const userId = req.user?.id;
+    const userRole = req.user?.role;
 
     // Verify course exists
     const course = await Course.findById(courseId).select('lessons price');
@@ -51,22 +52,27 @@ export const checkCourseAccessLevel = async (req: AuthRequest, res: Response, ne
       return next(new AppError('Course not found', 404));
     }
 
+    // Check if user is admin - admins get full access for preview purposes
+    const isAdmin = userRole === 'admin' || userRole === 'super_admin' || userRole === 'moderator';
+
     let accessInfo = {
       courseId,
-      hasAccess: false,
-      accessLevel: 'none' as 'free' | 'paid' | 'none',
-      lessonsAccessible: 0,
+      hasAccess: isAdmin, // Admins get full access
+      accessLevel: isAdmin ? 'paid' as const : 'none' as 'free' | 'paid' | 'none',
+      lessonsAccessible: isAdmin ? (course.lessons?.length || 0) : 0,
       totalLessons: course.lessons?.length || 0,
-      canUnlock: true,
+      canUnlock: !isAdmin, // Admins don't need to unlock
       price: course.price
     };
 
     // Count free lessons
     const freeLessons = course.lessons?.filter(l => l.isFree)?.length || 0;
-    accessInfo.lessonsAccessible = freeLessons;
+    if (!isAdmin) {
+      accessInfo.lessonsAccessible = freeLessons;
+    }
 
-    // If user is authenticated, check enrollment
-    if (userId) {
+    // If user is authenticated and not admin, check enrollment
+    if (userId && !isAdmin) {
       const user = await User.findById(userId).select('courseEnrollments');
       
       if (user && user.courseEnrollments) {
@@ -107,6 +113,7 @@ export const getCourseWithAccess = async (req: AuthRequest, res: Response, next:
   try {
     const { courseId } = req.params;
     const userId = req.user?.id;
+    const userRole = req.user?.role;
 
     const course = await Course.findById(courseId)
       .populate('instructor', 'name profileImage')
@@ -116,14 +123,17 @@ export const getCourseWithAccess = async (req: AuthRequest, res: Response, next:
       return next(new AppError('Course not found', 404));
     }
 
+    // Check if user is admin - admins get full access for preview purposes
+    const isAdmin = userRole === 'admin' || userRole === 'super_admin' || userRole === 'moderator';
+
     // Check user access
     let userAccess = {
-      hasPaidAccess: false,
-      accessLevel: 'free' as 'free' | 'paid' | 'none',
-      enrollmentStatus: 'none' as 'none' | 'pending' | 'approved' | 'paid'
+      hasPaidAccess: isAdmin, // Admins get full access
+      accessLevel: isAdmin ? 'paid' as const : 'free' as 'free' | 'paid' | 'none',
+      enrollmentStatus: isAdmin ? 'paid' as const : 'none' as 'none' | 'pending' | 'approved' | 'paid'
     };
 
-    if (userId) {
+    if (userId && !isAdmin) {
       const user = await User.findById(userId).select('courseEnrollments');
       
       if (user && user.courseEnrollments) {
@@ -149,9 +159,15 @@ export const getCourseWithAccess = async (req: AuthRequest, res: Response, next:
 
     // Add access info to lessons
     const lessonsWithAccess = course.lessons?.map(lesson => {
-      const lessonObj = lesson instanceof Object ? lesson : {};
+      const lessonDoc = lesson as any; // Cast to access Mongoose document properties
       return {
-        ...lessonObj,
+        _id: lessonDoc._id || lessonDoc.id,
+        title: lesson.title,
+        videoUrl: lesson.videoUrl,
+        order: lesson.order,
+        description: lesson.description,
+        resources: lesson.resources,
+        isFree: lesson.isFree || false,
         isAccessible: lesson.isFree || userAccess.hasPaidAccess
       };
     }) || [];
@@ -178,6 +194,7 @@ export const getLesson = async (req: AuthRequest, res: Response, next: Function)
   try {
     const { courseId, lessonId } = req.params;
     const userId = req.user?.id;
+    const userRole = req.user?.role;
 
     // Get course and find lesson
     const course = await Course.findById(courseId).select('lessons price');
@@ -193,8 +210,11 @@ export const getLesson = async (req: AuthRequest, res: Response, next: Function)
       return next(new AppError('Lesson not found', 404));
     }
 
+    // Check if user is admin - admins get full access for preview purposes
+    const isAdmin = userRole === 'admin' || userRole === 'super_admin' || userRole === 'moderator';
+
     // Check access
-    let hasAccess = lesson.isFree; // Free lessons accessible to all
+    let hasAccess = lesson.isFree || isAdmin; // Free lessons accessible to all, admins get full access
 
     if (!hasAccess && userId) {
       const user = await User.findById(userId).select('courseEnrollments');
@@ -247,16 +267,20 @@ export const getCourseLessons = async (req: AuthRequest, res: Response, next: Fu
   try {
     const { courseId } = req.params;
     const userId = req.user?.id;
+    const userRole = req.user?.role;
 
     const course = await Course.findById(courseId).select('lessons price');
     if (!course) {
       return next(new AppError('Course not found', 404));
     }
 
-    // Check user access
-    let hasPaidAccess = false;
+    // Check if user is admin - admins get full access for preview purposes
+    const isAdmin = userRole === 'admin' || userRole === 'super_admin' || userRole === 'moderator';
 
-    if (userId) {
+    // Check user access
+    let hasPaidAccess = isAdmin; // Admins get full access
+
+    if (userId && !isAdmin) {
       const user = await User.findById(userId).select('courseEnrollments');
       
       if (user && user.courseEnrollments) {
