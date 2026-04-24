@@ -264,7 +264,7 @@ export const uploadProof = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ message: 'Unauthorized' });
         }
 
-        const imageUrl = `/uploads/${req.file.filename}`;
+        const imageUrl = `/uploads/proofs/${req.file.filename}`;
         payment.proofUrl = imageUrl;
         payment.receiptImage = imageUrl; // Also store in receiptImage for compatibility
         await payment.save();

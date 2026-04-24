@@ -61,15 +61,22 @@ const Approvals: React.FC = () => {
         if (relativePath.startsWith('http')) return relativePath; // Already full URL
         
         // Remove leading slash if present to avoid double slashes
-        const cleanPath = relativePath.startsWith('/') ? relativePath.slice(1) : relativePath;
+        let cleanPath = relativePath.startsWith('/') ? relativePath.slice(1) : relativePath;
         
         // Handle empty path after cleaning
         if (!cleanPath) return '';
         
+        // Fix legacy paths: /uploads/proof-xxx should be /uploads/proofs/proof-xxx
+        if (cleanPath.startsWith('uploads/proof-') && !cleanPath.startsWith('uploads/proofs/')) {
+            cleanPath = cleanPath.replace('uploads/proof-', 'uploads/proofs/proof-');
+        }
+        
         // Encode URI components to handle special characters like spaces
         const encodedPath = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/');
         
-        return `${API_URL}/${encodedPath}`;
+        // Remove /api from API_URL for static file serving
+        const baseUrl = API_URL.replace(/\/api$/, '');
+        return `${baseUrl}/${encodedPath}`;
     };
 
     useEffect(() => {
