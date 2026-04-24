@@ -7,7 +7,8 @@ import {
     TrendingUp, 
     Layout, 
     BarChart3,
-    ArrowRight
+    ArrowRight,
+    Video
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AnnouncementBanner from '../AnnouncementBanner';
@@ -41,21 +42,32 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({
                             Instructor Workspace
                         </div>
                         <h1 className="text-4xl md:text-5xl font-black italic tracking-tight mb-2 text-white">
-                            Welcome back, <span className="text-cyan-400">{user.name.split(' ')[0]}</span>
+                            Welcome back, <span className="text-cyan-400">{user?.name?.split(' ')[0] || 'Instructor'}</span>
                         </h1>
                         <p className="text-slate-400 text-lg font-medium max-w-lg">
                             Manage your curriculum, track student progress, and monitor your course performance.
                         </p>
                     </div>
                     
-                    <Link
-                        to="/instructor/create-course"
-                        className="group relative inline-flex items-center gap-3 px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-cyan-900/40 overflow-hidden"
-                    >
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                        <Plus className="h-5 w-5" />
-                        <span>Create New Course</span>
-                    </Link>
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <Link
+                            to="/instructor/create-course"
+                            className="group relative inline-flex items-center gap-3 px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-cyan-900/40 overflow-hidden"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                            <Plus className="h-5 w-5" />
+                            <span>Create New Course</span>
+                        </Link>
+
+                        <Link
+                            to="/instructor/live/create"
+                            className="group relative inline-flex items-center gap-3 px-8 py-4 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-2xl transition-all border border-slate-700 hover:border-cyan-500/50 shadow-xl overflow-hidden"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                            <Video className="h-5 w-5 text-cyan-400" />
+                            <span>Go Live</span>
+                        </Link>
+                    </div>
                 </div>
             </motion.div>
 

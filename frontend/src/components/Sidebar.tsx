@@ -15,7 +15,8 @@ import {
     BarChart,
     PlusCircle,
     Folders,
-    Trophy
+    Trophy,
+    Video
 } from 'lucide-react';
 import { UserRole } from '../types';
 
@@ -38,6 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen }) => {
         { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         { name: 'Browse Library', path: '/student/browse', icon: BookOpen },
         { name: 'Leaderboard', path: '/student/leaderboard', icon: Trophy },
+        { name: 'Live Sessions', path: '/live/sessions', icon: Video },
         { name: 'Certificates', path: '/student/certificates', icon: Award },
         { name: 'Resources', path: '/student/resources', icon: FileText },
     ];
@@ -47,6 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen }) => {
         { name: 'My Students', path: '/instructor/students', icon: Users },
         { name: 'Create Course', path: '/instructor/create', icon: PlusCircle },
         { name: 'Analytics', path: '/instructor/analytics', icon: BarChart },
+        { name: 'Live Classes', path: '/live/sessions', icon: Video },
     ];
 
     const adminLinks = [
@@ -55,6 +58,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen }) => {
         { name: 'Approvals', path: '/admin/approvals', icon: CheckSquare },
         { name: 'Categories', path: '/admin/categories', icon: Folders },
         { name: 'Settings', path: '/admin/settings', icon: Settings },
+        { name: 'Live Stream Admin', path: '/live/sessions', icon: Video },
     ];
 
     let links = studentLinks;

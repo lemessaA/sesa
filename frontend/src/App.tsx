@@ -35,6 +35,12 @@ import Settings from "./pages/admin/Settings";
 import CoursePreview from "./pages/admin/CoursePreview";
 import MyCourses from "./pages/instructor/MyCourses";
 import Leaderboard from "./pages/student/Leaderboard";
+import LiveStreamLobby from "./pages/live/LiveStreamLobby";
+import LiveStreamRoom from "./pages/live/LiveStreamRoom";
+import ScheduleStream from "./pages/live/ScheduleStream";
+import RecordingViewer from "./pages/live/RecordingViewer";
+import AdminMonitor from "./pages/live/AdminMonitor";
+import StreamErrorBoundary from "./components/live/StreamErrorBoundary";
 import NotFound from "./pages/NotFound";
 import { UserRole } from "./types";
 import "./index.css";
@@ -43,7 +49,7 @@ import "./styles/accessibility.css";
 const AppRoutes: React.FC = () => {
     const location = useLocation();
     const { isAuthenticated, isLoading } = useAuth();
-    const isAppContent = ['/dashboard', '/student', '/instructor', '/admin', '/payment', '/courses'].some(path => location.pathname.startsWith(path));
+    const isAppContent = ['/dashboard', '/student', '/instructor', '/admin', '/payment', '/courses', '/live'].some(path => location.pathname.startsWith(path));
     const showPublicChrome = isAuthenticated && !isAppContent;
 
     if (isLoading) {
@@ -271,6 +277,48 @@ const AppRoutes: React.FC = () => {
                         element={
                             <ProtectedRoute wrapLayout>
                                 <Payment />
+                            </ProtectedRoute>
+                        }
+                    />
+
+                    {/* Live Streaming Routes V2 */}
+                    <Route
+                        path="/live/sessions"
+                        element={
+                            <ProtectedRoute wrapLayout>
+                                <LiveStreamLobby />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/live/room/:sessionId"
+                        element={
+                            <StreamErrorBoundary>
+                                <LiveStreamRoom />
+                            </StreamErrorBoundary>
+                        }
+                    />
+                    <Route
+                        path="/live/recording/:sessionId"
+                        element={
+                            <ProtectedRoute wrapLayout>
+                                <RecordingViewer />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/live/admin"
+                        element={
+                            <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPER_ADMIN]} wrapLayout>
+                                <AdminMonitor />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/instructor/live/create"
+                        element={
+                            <ProtectedRoute allowedRoles={[UserRole.INSTRUCTOR, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.ASSISTANT_INSTRUCTOR]} wrapLayout>
+                                <ScheduleStream />
                             </ProtectedRoute>
                         }
                     />

@@ -1,6 +1,9 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Server as HttpServer } from 'http';
+import { createAdapter } from '@socket.io/redis-adapter';
 import logger from './logger.js';
+import { getRedisClient, getRedisSubscriber } from './redisClient.js';
+import { initLiveStreamSocket } from '../liveStream/socket/liveStreamSocket.js';
 
 let io: SocketIOServer;
 
@@ -20,8 +23,29 @@ export const initSocket = (httpServer: HttpServer) => {
             methods: ['GET', 'POST'],
             credentials: true,
         },
+        // Recommended for production: pingTimeout and pingInterval
+        pingTimeout: 60000,
+        pingInterval: 25000,
     });
 
+    // ── Redis Adapter (enables horizontal scaling across Node.js processes) ──
+    const hasRedis = process.env.REDIS_URL || process.env.REDIS_URI;
+    if (hasRedis) {
+        try {
+            const pubClient = getRedisClient();
+            const subClient = getRedisSubscriber();
+            if (pubClient && subClient) {
+                io.adapter(createAdapter(pubClient, subClient));
+                logger.info('[Socket] Redis adapter attached — horizontal scaling enabled');
+            }
+        } catch (err: any) {
+            logger.warn(`[Socket] Redis adapter setup failed: ${err.message} — continuing without Redis`);
+        }
+    } else {
+        logger.info('[Socket] No Redis URL provided — running in single-server mode');
+    }
+
+    // ── Default namespace: notifications (unchanged) ──────────────────────────
     io.on('connection', (socket: Socket) => {
         logger.debug(`[Socket] User connected: ${socket.id}`);
 
@@ -37,6 +61,9 @@ export const initSocket = (httpServer: HttpServer) => {
             logger.debug(`[Socket] User disconnected: ${socket.id}`);
         });
     });
+
+    // ── /live namespace: live streaming V2 ─────────────────────────────────
+    initLiveStreamSocket(io);
 
     return io;
 };

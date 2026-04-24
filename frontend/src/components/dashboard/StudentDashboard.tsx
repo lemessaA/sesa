@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, Flame, Zap, TrendingUp, MessageSquare, ClipboardCheck, Award } from 'lucide-react';
+import { Star, Flame, Zap, TrendingUp, MessageSquare, ClipboardCheck, Award, Video, ArrowRight } from 'lucide-react';
 import DashboardLayout from './DashboardLayout';
 import TeacherEvaluation from '../student/TeacherEvaluation';
 import EnrollmentCard from '../EnrollmentCard';
@@ -26,7 +27,9 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
     const [selectedCourseForEval, setSelectedCourseForEval] = useState<any>(null);
     const [gradebookData, setGradebookData] = useState<Record<string, any[]>>({});
     const [smartEnrollments, setSmartEnrollments] = useState<any[]>([]);
+    const [activeSessions, setActiveSessions] = useState<any[]>([]);
     const [loadingEnrollments, setLoadingEnrollments] = useState(false);
+    const [loadingSessions, setLoadingSessions] = useState(false);
 
     // Fetch smart enrollments
     useEffect(() => {
@@ -51,6 +54,32 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
             }
         };
         fetchSmartEnrollments();
+    }, [token]);
+
+    // Fetch active live sessions
+    useEffect(() => {
+        const fetchSessions = async () => {
+            try {
+                setLoadingSessions(true);
+                const response = await fetch(
+                    `${import.meta.env.VITE_API_URL}/live-stream/sessions?status=live`,
+                    {
+                        headers: { Authorization: `Bearer ${token}` }
+                    }
+                );
+                if (response.ok) {
+                    const res = await response.json();
+                    setActiveSessions(res.data || []);
+                }
+            } catch (err) {
+                console.error('Failed to fetch active sessions', err);
+            } finally {
+                setLoadingSessions(false);
+            }
+        };
+        if (token) fetchSessions();
+        const interval = setInterval(() => token && fetchSessions(), 30000); // refresh every 30s
+        return () => clearInterval(interval);
     }, [token]);
 
     useEffect(() => {
@@ -108,6 +137,91 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
             <div className="px-4 md:px-8">
                 <GamificationStats />
             </div>
+
+            {/* NEW: Live Classes Quick Access */}
+            <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.12 }}
+                className="mx-3 mt-8 sm:mx-4 md:mx-8"
+            >
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 bg-slate-800/50 w-fit px-4 py-1.5 rounded-full">Live Interactive Sessions</h2>
+                    <Link to="/live/sessions" className="text-[10px] font-black text-blue-400 hover:text-blue-300 uppercase tracking-widest flex items-center gap-2 group">
+                        Browse All Sessions <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {loadingSessions ? (
+                        <div className="col-span-full py-8 flex items-center justify-center bg-slate-900/40 rounded-[2rem] border border-slate-700/50">
+                            <div className="w-6 h-6 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+                        </div>
+                    ) : activeSessions.length > 0 ? (
+                        activeSessions.slice(0, 3).map(session => (
+                            <Link 
+                                key={session._id}
+                                to={`/live/room/${session._id}`}
+                                className="relative overflow-hidden group rounded-[2rem] border border-red-500/30 bg-gradient-to-br from-red-600/10 to-rose-600/10 p-6 hover:border-red-500/50 transition-all shadow-xl"
+                            >
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-red-500/20 transition-all" />
+                                <div className="flex items-start justify-between relative z-10">
+                                    <div className="p-4 bg-red-500/20 rounded-2xl text-red-500 group-hover:scale-110 transition-transform">
+                                        <Video className="w-6 h-6" />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]" />
+                                        <div className="bg-red-500/20 text-red-500 text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">
+                                            Live Now
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-6 relative z-10">
+                                    <h3 className="text-lg font-black text-white italic group-hover:text-red-400 transition-colors line-clamp-1">{session.title}</h3>
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <div className="w-5 h-5 rounded-full bg-slate-700 border border-slate-600 overflow-hidden">
+                                            {session.hostId?.profileImage ? (
+                                                <img src={session.hostId.profileImage} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-[8px] font-black">{session.hostId?.name?.charAt(0)}</div>
+                                            )}
+                                        </div>
+                                        <p className="text-slate-400 text-xs font-bold uppercase tracking-tight">{session.hostId?.name}</p>
+                                    </div>
+                                    <div className="mt-4 pt-4 border-t border-slate-700/50 flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                                            {session.liveParticipantCount || 0} watching
+                                        </div>
+                                        <div className="text-[10px] font-black text-blue-400 uppercase italic tracking-tighter group-hover:translate-x-1 transition-transform">
+                                            Join Now →
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </Link>
+                        ))
+                    ) : (
+                        <div className="col-span-full py-8 text-center bg-slate-900/40 rounded-[2rem] border border-dashed border-slate-700/50">
+                            <Video className="w-8 h-8 text-slate-700 mx-auto mb-2" />
+                            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">No active sessions at the moment</p>
+                        </div>
+                    )}
+
+                    {activeSessions.length < 3 && (
+                        <Link 
+                            to="/live/sessions"
+                            className="rounded-[2rem] border border-slate-700/50 bg-[#112240]/40 backdrop-blur-xl p-6 flex flex-col justify-center hover:border-blue-500/30 transition-all group"
+                        >
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Coming Up Next</p>
+                            <p className="text-sm font-bold text-slate-200 group-hover:text-blue-400 transition-colors">Check the full schedule for upcoming classes</p>
+                            <div className="mt-2 flex items-center gap-1 text-[10px] text-blue-400 font-bold uppercase italic tracking-tighter">
+                                View Schedule <ArrowRight className="w-3 h-3" />
+                            </div>
+                        </Link>
+                    )}
+                </div>
+            </motion.div>
 
             {/* NEW: My Courses Section with Smart Enrollments */}
             {smartEnrollments.length > 0 && (

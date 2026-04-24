@@ -415,3 +415,40 @@
 {"level":"error","message":"Failed to send email to aman@sesa.com: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials 5b1f17b1804b1-488d5d9dd86sm67647235e9.4 - gsmtp","service":"sesa-backend","timestamp":"2026-04-11 13:16:33"}
 {"level":"error","message":"Failed to send email to devloperamiin@gmail.com: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials 5b1f17b1804b1-488df2a1237sm57723675e9.6 - gsmtp","service":"sesa-backend","timestamp":"2026-04-11 13:17:15"}
 {"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-14 21:08:04"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 02:48:06"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 02:52:02"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 02:52:31"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 07:22:18"}
+{"level":"error","message":"Unhandled Rejection: Reached the max retries per request limit (which is 3). Refer to \"maxRetriesPerRequest\" option for details.","service":"sesa-backend","timestamp":"2026-04-23 07:22:21"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 07:31:36"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 07:31:43"}
+{"level":"error","message":"Unhandled Rejection: Reached the max retries per request limit (which is 3). Refer to \"maxRetriesPerRequest\" option for details.","service":"sesa-backend","timestamp":"2026-04-23 07:31:46"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 07:32:53"}
+{"level":"error","message":"Unhandled Rejection: Reached the max retries per request limit (which is 3). Refer to \"maxRetriesPerRequest\" option for details.","service":"sesa-backend","timestamp":"2026-04-23 07:32:56"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 07:33:25"}
+{"level":"error","message":"Unhandled Rejection: Reached the max retries per request limit (which is 3). Refer to \"maxRetriesPerRequest\" option for details.","service":"sesa-backend","timestamp":"2026-04-23 07:33:28"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 07:36:44"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 07:36:51"}
+{"level":"error","message":"Unhandled Rejection: Reached the max retries per request limit (which is 3). Refer to \"maxRetriesPerRequest\" option for details.","service":"sesa-backend","timestamp":"2026-04-23 07:36:54"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 07:37:26"}
+{"level":"error","message":"Unhandled Rejection: Reached the max retries per request limit (which is 3). Refer to \"maxRetriesPerRequest\" option for details.","service":"sesa-backend","timestamp":"2026-04-23 07:37:29"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 08:12:35"}
+{"level":"error","message":"Unhandled Rejection: Reached the max retries per request limit (which is 3). Refer to \"maxRetriesPerRequest\" option for details.","service":"sesa-backend","timestamp":"2026-04-23 08:12:37"}
+{"level":"error","message":"Unhandled Rejection: Reached the max retries per request limit (which is 3). Refer to \"maxRetriesPerRequest\" option for details.","service":"sesa-backend","timestamp":"2026-04-23 08:22:39"}
+{"level":"error","message":"Unhandled Rejection: Connection is closed.","service":"sesa-backend","timestamp":"2026-04-23 08:23:38"}
+{"level":"error","message":"Unhandled Rejection: Connection is closed.","service":"sesa-backend","timestamp":"2026-04-23 08:25:24"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 08:25:57"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 08:26:10"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 08:27:26"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 09:08:42"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 09:08:42"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 09:08:42"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 09:10:28"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 09:10:28"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 09:10:28"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 09:25:49"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 09:25:49"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 09:25:49"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 09:25:50"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 09:45:42"}
+{"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","service":"sesa-backend","timestamp":"2026-04-23 12:34:13"}

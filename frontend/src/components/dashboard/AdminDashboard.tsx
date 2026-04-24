@@ -12,7 +12,8 @@ import {
     Settings,
     ArrowUpRight,
     PieChart as PieChartIcon,
-    ArrowRight
+    ArrowRight,
+    Video
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -105,6 +106,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     {[
                         { label: 'Courses', icon: CheckCircle, to: '/admin/approvals', color: 'from-emerald-600 to-teal-600' },
+                        { label: 'Live HQ', icon: Video, to: '/live/sessions', color: 'from-rose-600 to-pink-600' },
                         { label: 'Users', icon: UserCheck, to: '/admin/users', color: 'from-blue-600 to-cyan-600' },
                         { label: 'Revenue', icon: DollarSign, to: '/dashboard', color: 'from-amber-500 to-orange-500' },
                         { label: 'Settings', icon: Settings, to: '/admin/settings', color: 'from-purple-600 to-violet-600' },

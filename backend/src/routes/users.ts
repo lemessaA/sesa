@@ -188,10 +188,30 @@ router.get('/dashboard-data', authenticate, async (req: any, res: Response) => {
                 ? await User.find({ _id: { $in: allStudentIds } }).select('-password').sort({ createdAt: -1 })
                 : [];
 
+            const pendingQueue = courses.flatMap((course) => {
+                return course.pendingApprovals.map((studentId) => {
+                    const student = students.find((s) => s._id.toString() === studentId.toString());
+                    if (!student) return null;
+
+                    return {
+                        courseId: course._id,
+                        courseTitle: course.title,
+                        student: {
+                            _id: student._id,
+                            name: student.name,
+                            email: student.email,
+                            role: student.role,
+                        },
+                        requestedAt: course.createdAt, // Fallback as legacy pending info might be missing
+                    };
+                }).filter(Boolean);
+            });
+
             return res.json({
                 role: userRole,
                 courses,
                 students,
+                pendingQueue,
                 enrollmentStats
             });
         }

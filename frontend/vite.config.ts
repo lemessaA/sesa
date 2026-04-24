@@ -20,10 +20,8 @@ export default defineConfig(({ mode }) => {
     },
     // Base path for production deployment
     base: mode === 'production' ? '/' : '/',
-    // Environment variable configuration
-    define: {
-      'process.env': env
-    },
+    // Environment variable configuration are handled by Vite automatically using import.meta.env
+    // for variables prefixed with VITE_
     // Build optimization
     build: {
       outDir: 'dist',
