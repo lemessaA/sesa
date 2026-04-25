@@ -38,6 +38,8 @@ class InvokeBody(BaseModel):
     conversation_history: list[dict] = Field(default_factory=list)
     use_rag: bool = False
     response_mode: str = "default"
+    # From Node: indexed upload filenames (same user_id as RAG store)
+    user_document_names: list[str] = Field(default_factory=list)
     # tutorial | research | conversation | conversation_history | default
 
     @property
@@ -123,6 +125,7 @@ async def _run_completion(body: InvokeBody) -> dict:
         "conversation_history": body.conversation_history or [],
         "use_rag": bool(body.use_rag),
         "response_mode": body.response_mode_norm,
+        "user_document_names": [str(x) for x in (body.user_document_names or []) if str(x).strip()][:20],
     }
     try:
         result = await asyncio.to_thread(GRAPH.invoke, initial)

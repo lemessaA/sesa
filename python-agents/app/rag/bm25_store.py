@@ -115,6 +115,32 @@ class RAGStore:
         self.chunks = []
         self.save()
 
+    def fallback_diverse_excerpts(
+        self, max_docs: int = 3, max_len: int = 1_500
+    ) -> list[dict[str, Any]]:
+        """First chunk per distinct document so the model always sees some upload content when the query is a weak BM25 match."""
+        seen: set[str] = set()
+        out: list[dict[str, Any]] = []
+        for c in self.chunks:
+            sid = str(c.get("source_doc_id", ""))
+            if sid in seen:
+                continue
+            seen.add(sid)
+            text = (c.get("text") or "")[:max_len]
+            if not text.strip():
+                continue
+            out.append(
+                {
+                    "text": text,
+                    "source_name": c.get("source_name", "document"),
+                    "source_doc_id": sid,
+                    "score": 0.0,
+                }
+            )
+            if len(out) >= max_docs:
+                break
+        return out
+
     def search(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
         if not query.strip() or not self.chunks:
             return []
@@ -123,7 +149,7 @@ class RAGStore:
             return []
         q_tokens = self._tokenize(query)
         if not q_tokens:
-            return []
+            return self.fallback_diverse_excerpts(max_docs=min(3, top_k), max_len=2_000)
         scores = bm.get_scores(q_tokens)
         ranked = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[: top_k]
         out: list[dict[str, Any]] = []
@@ -141,7 +167,27 @@ class RAGStore:
 
 
 def search_user_rag(user_id: str, query: str, top_k: int = 5) -> list[dict[str, Any]]:
-    return RAGStore.load(user_id).search(query, top_k=top_k)
+    store = RAGStore.load(user_id)
+    if not store.chunks:
+        return []
+    primary = store.search(query, top_k=top_k)
+    if not primary:
+        return store.fallback_diverse_excerpts(max_docs=min(3, top_k), max_len=2_000)
+    best = max((h.get("score") or 0.0) for h in primary)
+    if best < 0.08:
+        fb = store.fallback_diverse_excerpts(max_docs=2, max_len=1_200)
+        merged: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for h in primary[:2] + fb:
+            key = f"{h.get('source_doc_id')}_{(h.get('text') or '')[:40]}"
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(h)
+            if len(merged) >= top_k:
+                break
+        return merged[:top_k]
+    return primary
 
 
 def ingest_user_document(

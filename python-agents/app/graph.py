@@ -17,8 +17,12 @@ from app.sesa_context import APP_GUIDE
 
 
 class RouterOut(BaseModel):
-    intent: Literal["app_help", "quiz", "recommend", "general"] = Field(
-        description="app_help=how to use the product; quiz=user wants practice questions generated; recommend=what to learn or do next from dashboard; general=other."
+    intent: Literal["app_help", "quiz", "recommend", "general", "document_qa"] = Field(
+        description=(
+            "app_help=SESA app UI, enroll, pay, dashboard. "
+            "quiz=practice questions. recommend=next course/study from dashboard. "
+            "document_qa=question about the user's OWN uploaded file/PDF/notes content. general=other."
+        )
     )
 
 
@@ -37,6 +41,7 @@ class AgentState(TypedDict, total=False):
     response_mode: str
     rag_context: str
     rag_citations: list[str]
+    user_document_names: list[str]
 
 
 def _response_mode_extras(response_mode: str) -> str:
@@ -63,7 +68,9 @@ def _response_mode_extras(response_mode: str) -> str:
 
 def _rag_block(state: AgentState) -> str:
     rctx = (state.get("rag_context") or "").strip()
-    if not rctx or rctx.startswith("(No relevant"):
+    if rctx.startswith("SYNC_INFO:"):
+        return "\n\n" + rctx
+    if not rctx or rctx.startswith("(No relevant") or rctx.startswith("(RAG index"):
         return ""
     return "\n\n--- RETRIEVED SOURCES (user-uploaded documents) ---\n" + rctx
 
@@ -86,37 +93,82 @@ def _llm() -> ChatGroq:
 def router_node(state: AgentState) -> dict[str, str]:
     llm = _llm().with_structured_output(RouterOut)
     text = state["user_message"].strip()
+    udn = list(state.get("user_document_names") or [])
+    udn_str = ", ".join(udn) if udn else ""
+    registered = (
+        f"\nThe SESA app currently lists these documents as successfully indexed: {udn_str}. "
+        f"You MUST NOT deny that the user has uploads when that list is non-empty.\n"
+        if udn
+        else ""
+    )
+    rag_note = ""
+    if state.get("use_rag"):
+        cites = state.get("rag_citations") or []
+        if cites:
+            rag_note = (
+                f"\nIMPORTANT: The user turned on document mode. The system already pulled text from their upload(s): "
+                f"{', '.join(cites)}. If the question can be answered from those materials (summary, facts, ‘what does it say’, "
+                f"‘explain this file’), you MUST output intent document_qa — not app_help or general.\n"
+            )
+        else:
+            rag_note = (
+                "\nIMPORTANT: Document mode is ON; excerpts may be broad. "
+                "If the user is asking about their own file, PDF, or ‘what it says’ / ‘explain’ / ‘summary’, use document_qa — not app_help.\n"
+            )
     sys = (
-        "Classify the user's latest message for an educational web app.\n"
-        "- app_help: how to navigate, enroll, pay, certificates, dashboard widgets, or where to find a feature.\n"
-        "- quiz: user wants quiz/practice questions, MCQ, test prep, or 'drill me'.\n"
-        "- recommend: what course to take next, what to study, priorities based on progress (needs dashboard context).\n"
-        "- general: everything else (small talk, vague questions answerable without heavy dashboard use).\n"
-        "Return only the structured intent field."
+        registered
+        + "Classify the user's latest message for an educational web app.\n"
+        "- document_qa: the user is asking you to read or use THEIR OWN uploaded file(s) or notes "
+        "(e.g. 'my PDF', 'the file I uploaded', 'what does my document say', 'from my materials', 'according to my notes', "
+        "'summarize my upload', 'question about this document', 'what is this about', 'explain the text').\n"
+        "- app_help: SESA app navigation, enroll, pay, certificates, dashboard, where a feature is (NOT the text inside their file).\n"
+        "- quiz: user wants generated quiz questions, practice tests, or 'drill me' on a topic.\n"
+        "- recommend: what to study or which course to take next (uses dashboard, not their PDF content).\n"
+        "- general: other questions, including if it's vague or not clearly about an uploaded file.\n"
+        "If both document_qa and another category might fit, choose document_qa when the user clearly refers to their uploaded file content.\n"
+        + rag_note
+        + "Return only the structured intent field."
     )
     out = llm.invoke([SystemMessage(content=sys), HumanMessage(content=text)])
     return {"intent": out.intent}
 
 
 def attach_rag_node(state: AgentState) -> dict[str, Any]:
-    from app.rag.bm25_store import search_user_rag
+    from app.rag.bm25_store import RAGStore, search_user_rag
 
     if not state.get("use_rag"):
         return {"rag_context": "", "rag_citations": []}
     uid = (state.get("user_id") or "").strip()
     if not uid:
         return {"rag_context": "", "rag_citations": []}
+    udn = [str(s).strip() for s in (state.get("user_document_names") or []) if str(s).strip()][:20]
     q = (state.get("user_message") or "").strip()
+    if not q and udn:
+        q = "summary main points content"  # still run keyword search
     if not q:
         return {"rag_context": "", "rag_citations": []}
+    st = RAGStore.load(uid)
     try:
         hits = search_user_rag(uid, q, top_k=5)
     except Exception:
         return {"rag_context": "(RAG index unavailable.)", "rag_citations": []}
+    if (not hits) and st.chunks:
+        hits = st.fallback_diverse_excerpts(max_docs=5, max_len=2_500)
+    if (not hits) and udn and (not st.chunks):
+        # App DB says files exist, but this Python has no RAG data (wrong host / wiped volume / ingest went elsewhere)
+        return {
+            "rag_context": (
+                "SYNC_INFO: The app lists these files as indexed, but this agent has no text index for your account on disk: "
+                + ", ".join(udn)
+                + ". The PDF must be re-uploaded while this python-agents service is running, or LANGGRAPH_AGENT_URL must point "
+                "at the same server that received the file. Do not state that the user failed to upload."
+            ),
+            "rag_citations": udn,
+        }
     if not hits:
         return {
             "rag_context": "(No relevant passages in uploaded documents for this question.)",
-            "rag_citations": [],
+            "rag_citations": [] if (not udn) else udn,
         }
     lines: list[str] = []
     names: list[str] = []
@@ -136,7 +188,50 @@ def attach_rag_node(state: AgentState) -> dict[str, Any]:
 
 def route_from_intent(state: AgentState) -> str:
     intent = state.get("intent") or "general"
-    if intent in ("app_help", "quiz", "recommend", "general"):
+    umsg = (state.get("user_message") or "").lower()
+    if state.get("use_rag"):
+        udn = state.get("user_document_names") or []
+        nav = any(
+            x in umsg
+            for x in (
+                "how do i enroll",
+                "where is the menu",
+                "navigate to",
+                "settings page",
+                "click on",
+                "how to pay",
+                "payment page",
+            )
+        )
+        fileish = any(
+            x in umsg
+            for x in (
+                "pdf",
+                "file",
+                "document",
+                "upload",
+                "uploaded",
+                "summary",
+                "summarize",
+                "explain",
+                "explanation",
+                "says",
+                "text",
+                "content",
+                "what does",
+                "main points",
+                "describe",
+                "according",
+                "passage",
+                "lecture",
+                "read",
+                "notes",
+                "material",
+            )
+        )
+        if (not nav) and fileish and intent in ("app_help", "general", "recommend"):
+            return "document_qa"
+    if intent in ("app_help", "quiz", "recommend", "general", "document_qa"):
         return intent
     return "general"
 
@@ -261,12 +356,96 @@ def recommend_node(state: AgentState) -> dict[str, Any]:
     return {"reply": reply or "Here are a few suggestions based on your dashboard.", "recommendations": recs}
 
 
+def document_qa_node(state: AgentState) -> dict[str, str]:
+    """Answer mainly from RAG chunks when the user asks about their uploaded files."""
+    udn = list(state.get("user_document_names") or [])
+    if not state.get("use_rag"):
+        return {
+            "reply": (
+                "To answer from your own files, turn on “Use my documents” in this assistant, "
+                "and make sure you have uploaded documents (enrolled students only). "
+                "Then ask your question again."
+            ),
+        }
+    rctx = (state.get("rag_context") or "").strip()
+    if rctx.startswith("(RAG index"):
+        return {
+            "reply": "The document search index is temporarily unavailable. Please try again in a moment.",
+        }
+    if rctx.startswith("(No relevant"):
+        if udn:
+            return {
+                "reply": (
+                    f"I have your indexed file(s) ({', '.join(udn)}), but that question did not match any text passage. "
+                    "Try: paste 5–10 words that appear in the PDF, or ask: “Summarize the document in 5 bullet points” or “What are the key definitions?”"
+                ),
+            }
+        return {
+            "reply": (
+                "I could not find relevant text in your uploaded documents for that question. "
+                "Try rephrasing with key words from the file, or upload the PDF again and wait for status “indexed”."
+            ),
+        }
+    rblock = _rag_block(state)
+    if not rblock and udn:
+        return {
+            "reply": (
+                f"Your app lists: {', '.join(udn)}, but I could not load text. "
+                "Re-upload the file with the agent service (python-agents) running, then ask again."
+            ),
+        }
+    if not rblock:
+        return {
+            "reply": (
+                "I do not have usable excerpts from your files for this. "
+                "Add a document (PDF, Word, or text) and check that it finished indexing, then try again."
+            ),
+        }
+    llm = _llm()
+    mode = (state.get("response_mode") or "default").lower()
+    limit = 12 if mode in ("conversation", "conversation_history") else 6
+    hist = state.get("conversation_history") or []
+    is_sync = rctx.startswith("SYNC_INFO:") or "SYNC_INFO" in rblock
+    detail = (
+        "Give a thorough answer: use sections or bullet points as appropriate. For tutorial mode, use numbered steps. "
+        "For research mode, use bullet facts and name the file for each. "
+    )
+    sys = (
+        (detail if not is_sync else "")
+        + "The user is asking about their OWN files. You MUST follow the information below. "
+        "NEVER state that the user has no upload if USERFILES or RETRIEVED SOURCES / SYNC_INFO shows files. "
+        "Do not replace this with a generic dashboard/JSON walkthrough unless the user asked about the SESA app UI. "
+        "For SYNC_INFO, explain the server/index mismatch in plain language and what to do (re-upload with agent running). "
+        "Otherwise use RETRIEVED SOURCES: quote or paraphrase; name the file in brackets. Do not invent facts not in the sources.\n"
+        + rblock
+        + _mode_suffix(state)
+    )
+    msgs: list[HumanMessage | SystemMessage] = [SystemMessage(content=sys)]
+    for turn in hist[-limit:]:
+        role = turn.get("role", "user")
+        content = turn.get("content", "")
+        if role == "assistant":
+            msgs.append(SystemMessage(content="Previous assistant: " + content[:1500]))
+        else:
+            msgs.append(HumanMessage(content=content[:1500]))
+    msgs.append(HumanMessage(content=state["user_message"]))
+    text = llm.invoke(msgs).content
+    return {"reply": str(text).strip()}
+
+
 def general_node(state: AgentState) -> dict[str, str]:
     llm = _llm()
     dash = _dash_str(state)
+    has_rag = bool(_rag_block(state).strip())
+    rag_line = (
+        "When RETRIEVED SOURCES (uploaded file excerpts) are present and on-topic, use them to answer fact questions about that material. "
+        if has_rag
+        else ""
+    )
     sys = (
         "You are SafeEdu SESA assistant: helpful, concise, friendly. "
-        "You may reference dashboard JSON and RETRIEVED SOURCES to personalize and ground answers.\n"
+        + rag_line
+        + "You may reference dashboard JSON and RETRIEVED SOURCES to personalize and ground answers.\n"
         + dash
         + _rag_block(state)
         + _mode_suffix(state)
@@ -295,6 +474,7 @@ def build_graph():
     g.add_node("app_help", app_help_node)
     g.add_node("quiz", quiz_node)
     g.add_node("recommend", recommend_node)
+    g.add_node("document_qa", document_qa_node)
     g.add_node("general", general_node)
 
     g.add_edge(START, "attach_rag")
@@ -307,12 +487,14 @@ def build_graph():
             "app_help": "app_help",
             "quiz": "quiz",
             "recommend": "recommend",
+            "document_qa": "document_qa",
             "general": "general",
         },
     )
     g.add_edge("app_help", END)
     g.add_edge("quiz", END)
     g.add_edge("recommend", END)
+    g.add_edge("document_qa", END)
     g.add_edge("general", END)
     return g.compile()
 
