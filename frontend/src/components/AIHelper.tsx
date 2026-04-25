@@ -18,6 +18,41 @@ const QUICK_ACTIONS = [
     { label: '👨‍🏫 Become instructor', query: 'How can I become an instructor?' },
 ];
 
+type AgentChatPayload = {
+    reply?: string;
+    quiz?: { questions?: Array<Record<string, unknown>> };
+    recommendations?: Array<{ title?: string; reason?: string; courseTitle?: string; courseId?: string }>;
+    intent?: string;
+};
+
+function formatAgentReply(data: AgentChatPayload): string {
+    const parts: string[] = [];
+    if (data.reply?.trim()) parts.push(data.reply.trim());
+    const qs = data.quiz?.questions;
+    if (Array.isArray(qs) && qs.length > 0) {
+        const preview = qs
+            .slice(0, 4)
+            .map((q, i) => {
+                const t = (q.question as string) || (q.questionText as string) || JSON.stringify(q);
+                return `${i + 1}. ${t}`;
+            })
+            .join('\n');
+        parts.push(
+            `\n**Practice quiz (${qs.length} questions)** — preview:\n${preview}${qs.length > 4 ? '\n…' : ''}`
+        );
+    }
+    if (Array.isArray(data.recommendations) && data.recommendations.length > 0) {
+        const lines = data.recommendations
+            .map((r) => {
+                const title = r.title || r.courseTitle || 'Course';
+                return `• **${title}**${r.reason ? `: ${r.reason}` : ''}`;
+            })
+            .join('\n');
+        parts.push(`\n**Suggested next steps:**\n${lines}`);
+    }
+    return parts.join('\n') || 'Sorry, I could not generate a response right now. Please try again.';
+}
+
 const AIHelper: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([
@@ -41,7 +76,26 @@ const AIHelper: React.FC = () => {
         if (isOpen) scrollToBottom();
     }, [messages, isOpen]);
 
-    const generateAIResponse = async (input: string): Promise<string> => {
+    const generateAIResponse = async (
+        input: string,
+        conversationHistory: { role: string; content: string }[]
+    ): Promise<string> => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            try {
+                const res = await apiService.aiAgent.chat(input, conversationHistory);
+                const raw = res.data as { data?: AgentChatPayload } & Partial<AgentChatPayload>;
+                const payload: AgentChatPayload = raw.data ?? {
+                    reply: raw.reply,
+                    intent: raw.intent,
+                    quiz: raw.quiz,
+                    recommendations: raw.recommendations,
+                };
+                return formatAgentReply(payload);
+            } catch (err) {
+                console.warn('[AIHelper] ai-agent chat failed, falling back to public /ai/chat', err);
+            }
+        }
         try {
             const res = await apiService.ai.chat(input);
             return res.data?.reply || 'Sorry, I could not generate a response right now. Please try again.';
@@ -66,7 +120,11 @@ const AIHelper: React.FC = () => {
         setIsTyping(true);
         setShowQuickActions(false);
 
-        const replyText = await generateAIResponse(userMsg.text);
+        const conversationHistory = messages
+            .slice(-8)
+            .map((m) => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text }));
+
+        const replyText = await generateAIResponse(userMsg.text, conversationHistory);
 
         const aiMsg: ChatMessage = {
             id: (Date.now() + 1).toString(),

@@ -8,6 +8,8 @@ const getRedisUrl = (): string | null => {
     return process.env.REDIS_URL || process.env.REDIS_URI || null;
 };
 
+export const isRedisConfigured = (): boolean => Boolean(getRedisUrl());
+
 export const createRedisClient = (): Redis => {
     const url = getRedisUrl();
 
@@ -27,7 +29,7 @@ export const createRedisClient = (): Redis => {
     const client = url ? new Redis(url, options) : new Redis({ ...options, host: '127.0.0.1', port: 6379 });
 
     client.on('connect', () => logger.info('[Redis] Connected successfully'));
-    client.on('error', (err) => {
+    client.on('error', (err: any) => {
         // Only log connection errors as warnings, avoid crashing
         if (err.message.includes('ECONNREFUSED')) {
             logger.warn(`[Redis] Connection refused at ${err.address || '127.0.0.1'}:${err.port || 6379}`);
@@ -106,6 +108,16 @@ export const redisDel = async (key: string): Promise<void> => {
     }
 };
 
+export const redisExpire = async (key: string, ttlSeconds: number): Promise<void> => {
+    const client = getRedisClient();
+    if (!client) return;
+    try {
+        await client.expire(key, ttlSeconds);
+    } catch (err: any) {
+        logger.warn(`[Redis] EXPIRE error for key ${key}: ${err.message}`);
+    }
+};
+
 export const redisIncr = async (key: string, ttlSeconds?: number): Promise<number> => {
     const client = getRedisClient();
     if (!client) return 0;
@@ -130,5 +142,38 @@ export const redisDecr = async (key: string): Promise<number> => {
     } catch (err: any) {
         logger.warn(`[Redis] DECR error for key ${key}: ${err.message}`);
         return 0;
+    }
+};
+
+export const redisSAdd = async (key: string, ...members: string[]): Promise<void> => {
+    if (members.length === 0) return;
+    const client = getRedisClient();
+    if (!client) return;
+    try {
+        await client.sadd(key, ...members);
+    } catch (err: any) {
+        logger.warn(`[Redis] SADD error for key ${key}: ${err.message}`);
+    }
+};
+
+export const redisSRem = async (key: string, ...members: string[]): Promise<void> => {
+    if (members.length === 0) return;
+    const client = getRedisClient();
+    if (!client) return;
+    try {
+        await client.srem(key, ...members);
+    } catch (err: any) {
+        logger.warn(`[Redis] SREM error for key ${key}: ${err.message}`);
+    }
+};
+
+export const redisSMembers = async (key: string): Promise<string[]> => {
+    const client = getRedisClient();
+    if (!client) return [];
+    try {
+        return await client.smembers(key);
+    } catch (err: any) {
+        logger.warn(`[Redis] SMEMBERS error for key ${key}: ${err.message}`);
+        return [];
     }
 };

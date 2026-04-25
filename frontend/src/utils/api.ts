@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { type InternalAxiosRequestConfig } from 'axios';
 
 // API Configuration
 // Ensure the base URL always has the /api prefix for consistency
@@ -22,6 +22,47 @@ export const getApiBaseUrl = () => {
 };
 
 export const API_BASE_URL = getApiBaseUrl();
+
+/** Deduplicate parallel 401s so we only call /auth/refresh once. */
+let refreshInFlight: Promise<string | null> | null = null;
+
+function setAuthHeaderForRetry(config: InternalAxiosRequestConfig, token: string) {
+  const h = config.headers;
+  if (h && typeof (h as { set?: (a: string, b: string) => void }).set === 'function') {
+    (h as { set: (a: string, b: string) => void }).set('Authorization', `Bearer ${token}`);
+  } else {
+    (config as InternalAxiosRequestConfig & { headers: Record<string, string> }).headers = {
+      ...(h as object as Record<string, string>),
+      Authorization: `Bearer ${token}`,
+    };
+  }
+}
+
+function refreshAccessToken(): Promise<string | null> {
+  if (refreshInFlight) {
+    return refreshInFlight;
+  }
+  // Assign synchronously so concurrent 401s share one refresh, not N parallel POSTs.
+  refreshInFlight = axios
+    .post<{ token?: string }>(
+      `${API_BASE_URL}/auth/refresh`,
+      {},
+      { withCredentials: true, headers: { 'Content-Type': 'application/json' } }
+    )
+    .then((res) => {
+      const token = res.data?.token;
+      if (token) {
+        localStorage.setItem('token', token);
+        return token;
+      }
+      return null;
+    })
+    .catch(() => null)
+    .finally(() => {
+      refreshInFlight = null;
+    });
+  return refreshInFlight;
+}
 
 // Create axios instance with default config
 const api = axios.create({
@@ -47,26 +88,45 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor for error handling
+// Response interceptor: refresh access token (15m) via httpOnly cookie, then retry once
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config as
+      | ({ _retry?: boolean; url?: string; headers?: Record<string, string> } & typeof error.config)
+      | undefined;
+
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+      const preUrl = originalRequest.url || '';
+      const authNoRefresh = ['/auth/login', '/auth/register', '/auth/forgot-password'];
+      const isAuthNoRefresh = authNoRefresh.some((ep) => preUrl.includes(ep));
+      if (!isAuthNoRefresh && !preUrl.includes('/auth/refresh')) {
+        originalRequest._retry = true;
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          setAuthHeaderForRetry(originalRequest, newToken);
+          return api(originalRequest);
+        }
+      }
+    }
+
     if (error.response) {
       const requestUrl: string = error.config?.url || '';
       // List of auth endpoints that should NOT trigger a forced redirect on 401
       // (the login/register forms handle their own errors)
-      const authEndpoints = ['/auth/login', '/auth/register', '/auth/refresh'];
+      const authEndpoints = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/forgot-password'];
       const isAuthEndpoint = authEndpoints.some((ep) => requestUrl.includes(ep));
 
       switch (error.response.status) {
         case 401:
-          // Only redirect to login page if this is NOT an auth endpoint call.
-          // If the user typed wrong credentials, we must NOT reload the page —
-          // the Login component catches the error and shows a message instead.
-          if (!isAuthEndpoint) {
+          // Refresh failed or no cookie: force re-login. Wrong password on login: do not nuke session.
+          if (requestUrl.includes('/auth/refresh')) {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
-            // Use history API to avoid a hard full-page reload
+            window.dispatchEvent(new CustomEvent('sesa:unauthorized'));
+          } else if (!isAuthEndpoint) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
             window.dispatchEvent(new CustomEvent('sesa:unauthorized'));
           }
           break;
@@ -323,6 +383,19 @@ export const apiService = {
       api.post('/ai/summarize', { text, maxSentences }),
   },
 
+  /**
+   * Personal agent (v1 REST): POST /api/v1/agent/messages
+   * Legacy /api/ai-agent/chat still works; prefer this path. Response: { data: { reply, intent, ... } }.
+   */
+  aiAgent: {
+    chat: (message: string, conversationHistory?: { role: string; content: string }[]) =>
+      api.post(
+        '/v1/agent/messages',
+        { message, conversationHistory },
+        { timeout: 120000 }
+      ),
+  },
+
   // AI tutor endpoints
   aiTutor: {
     startSession: (data: { courseId: string; learningStyle: string; difficultyLevel: string }) =>
@@ -369,6 +442,9 @@ export const apiService = {
 
   // Utility function to check API health
   healthCheck: () => api.get('/health'),
+
+  /** GET /api/v1 — v1 index + HATEOAS links (no auth) */
+  apiV1: () => api.get('/v1'),
 };
 
 export const apiClient = api;

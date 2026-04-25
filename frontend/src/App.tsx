@@ -11,7 +11,7 @@ import Navbar from "./components/Navbar";
 import GlobalPopup from "./components/GlobalPopup";
 import Footer from "./components/Footer";
 import BackToTop from "./components/BackToTop";
-import SafeEduConcierge from "./components/SafeEduConcierge";
+import AIHelper from "./components/AIHelper";
 import Landing from "./pages/Landing";
 import Login from "./pages/auth/Login";
 import Dashboard from "./pages/Dashboard";
@@ -328,7 +328,7 @@ const AppRoutes: React.FC = () => {
             </main>
             {showPublicChrome && <Footer />}
             {showPublicChrome && <BackToTop />}
-            {isAuthenticated && <SafeEduConcierge />}
+            {isAuthenticated && <AIHelper />}
 
             {/* Toast Notifications */}
             <ToastContainer

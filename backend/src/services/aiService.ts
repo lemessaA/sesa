@@ -3,11 +3,37 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // ── Providers ───────────────────────────────────────────────────────────────
 
-// 1. OpenAI Configuration
-const openaiApiKey = process.env.OPENAI_API_KEY;
-export const openAiClient = openaiApiKey && !openaiApiKey.startsWith('sk-xxxx') 
-  ? new OpenAI({ apiKey: openaiApiKey }) 
-  : null;
+const GROQ_OPENAI_BASE_URL = 'https://api.groq.com/openai/v1';
+
+const groqApiKey = process.env.GROQ_API_KEY?.trim();
+const groqKeyLooksValid =
+  Boolean(groqApiKey) &&
+  groqApiKey!.startsWith('gsk_') &&
+  !groqApiKey!.startsWith('gsk-xxxx');
+
+const openaiApiKey = process.env.OPENAI_API_KEY?.trim();
+const openaiKeyLooksValid =
+  Boolean(openaiApiKey) &&
+  openaiApiKey!.startsWith('sk-') &&
+  !openaiApiKey!.startsWith('sk-xxxx');
+
+/** OpenAI-compatible chat (Groq preferred, then OpenAI). */
+export const openAiClient =
+  groqKeyLooksValid
+    ? new OpenAI({
+        apiKey: groqApiKey,
+        baseURL: GROQ_OPENAI_BASE_URL,
+      })
+    : openaiKeyLooksValid
+      ? new OpenAI({ apiKey: openaiApiKey })
+      : null;
+
+export const openAiCompatUsesGroq = Boolean(groqKeyLooksValid);
+
+export const defaultOpenAiCompatModel = () =>
+  openAiCompatUsesGroq
+    ? (process.env.GROQ_MODEL?.trim() || 'llama-3.3-70b-versatile')
+    : 'gpt-4o-mini';
 
 // 2. Gemini Configuration
 const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -16,7 +42,9 @@ export const geminiClient = geminiApiKey && !geminiApiKey.startsWith('YOUR_GEMIN
   : null;
 
 if (!openAiClient && !geminiClient) {
-  console.warn('AI features are disabled: No valid OPENAI_API_KEY or GEMINI_API_KEY found.');
+  console.warn(
+    'AI features are disabled: No valid GROQ_API_KEY (or OPENAI_API_KEY fallback) or GEMINI_API_KEY found.'
+  );
 }
 
 export type ChatMessagePayload = {
@@ -39,7 +67,9 @@ export const createChatResponse = async (
   const provider = options?.provider || (geminiClient ? 'gemini' : (openAiClient ? 'openai' : null));
 
   if (!provider) {
-    throw new Error('AI providers are not configured. Please set GEMINI_API_KEY or OPENAI_API_KEY.');
+    throw new Error(
+      'AI providers are not configured. Please set GEMINI_API_KEY and/or GROQ_API_KEY (or OPENAI_API_KEY as fallback).'
+    );
   }
 
   // --- Option A: Gemini (Preferred for Native Integration) ---
@@ -64,9 +94,9 @@ export const createChatResponse = async (
     }
   }
 
-  // --- Option B: OpenAI ---
+  // --- Option B: OpenAI-compatible (Groq or OpenAI) ---
   if (provider === 'openai' && openAiClient) {
-    const model = options?.model || 'gpt-4o-mini';
+    const model = options?.model || defaultOpenAiCompatModel();
     const response = await openAiClient.chat.completions.create({
       model,
       messages,
@@ -77,11 +107,11 @@ export const createChatResponse = async (
   }
 
   // --- Option C: Mock AI (Fallback when no keys are set) ---
-  return `[Mock AI Assistant]: I'm currently in "Offline Mode" because no API keys (Google Gemini or OpenAI) have been configured in the backend .env file. 
+  return `[Mock AI Assistant]: I'm currently in "Offline Mode" because no API keys (Google Gemini or Groq/OpenAI-compatible) have been configured in the backend .env file. 
 
 To enable my full capabilities, please:
-1. Get an API key from Google AI Studio (Gemini) or OpenAI.
-2. Add it to the .env file as GEMINI_API_KEY or OPENAI_API_KEY.
+1. Get an API key from Google AI Studio (Gemini) and/or Groq (or OpenAI as fallback).
+2. Add it to the .env file as GEMINI_API_KEY and/or GROQ_API_KEY (or OPENAI_API_KEY).
 3. Restart the server.
 
 In the meantime, feel free to explore the platform's features like courses, enrollments, and payments!`;

@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { syncUserCourseRefs } from '../utils/normalizedRefs.js';
 
 export interface IProgress extends Document {
     userId: mongoose.Types.ObjectId;
@@ -65,6 +66,16 @@ const ProgressSchema: Schema = new Schema({
 // Unique index: one progress record per user per course
 ProgressSchema.index({ user: 1, course: 1 }, { unique: true });
 ProgressSchema.index({ userId: 1, courseId: 1 }, { unique: true });
+
+ProgressSchema.pre('validate', function () {
+    syncUserCourseRefs(this as unknown as {
+        userId?: mongoose.Types.ObjectId;
+        user?: mongoose.Types.ObjectId;
+        courseId?: mongoose.Types.ObjectId;
+        course?: mongoose.Types.ObjectId;
+        set: (path: string, value: mongoose.Types.ObjectId | undefined) => void;
+    });
+});
 
 ProgressSchema.pre('save', function () {
     this.updatedAt = new Date();

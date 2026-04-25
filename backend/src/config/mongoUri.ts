@@ -10,6 +10,11 @@ import type { ConnectOptions } from 'mongoose';
 /** Local MongoDB (Docker or native install). 127.0.0.1 avoids some IPv6 resolution issues. */
 const LOCAL_DEFAULT = 'mongodb://127.0.0.1:27017/sesa_db';
 
+const isLocalFallbackAllowed = (): boolean => {
+    const env = (process.env.NODE_ENV || 'development').toLowerCase();
+    return env === 'development' || env === 'test';
+};
+
 export function ensureMongoUriFromEnv(): void {
     // Full local dev: set USE_LOCAL_DB=1 in backend/.env to ignore Atlas and use local Mongo only.
     if (
@@ -21,7 +26,7 @@ export function ensureMongoUriFromEnv(): void {
     if (!process.env.MONGO_URI?.trim() && process.env.MONGODB_URI?.trim()) {
         process.env.MONGO_URI = process.env.MONGODB_URI.trim();
     }
-    if (!process.env.MONGO_URI?.trim() && !process.env.RENDER) {
+    if (!process.env.MONGO_URI?.trim() && !process.env.RENDER && isLocalFallbackAllowed()) {
         process.env.MONGO_URI = LOCAL_DEFAULT;
     }
 }

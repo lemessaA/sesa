@@ -47,6 +47,9 @@ SYSTEM_ALIGNMENT_COMPLETE.md
 backend/.env
 backend/.env.*
 !backend/.env.example
+python-agents/.env
+python-agents/.env.*
+!python-agents/.env.example
 frontend/.env
 frontend/.env.local
 frontend/.env.development.local

@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "seed": "tsx src/utils/seed.ts",
     "seed:enhanced": "tsx src/utils/seedEnhanced.ts",
+    "db:normalize-refs": "tsx src/utils/normalizeReferenceAliases.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "render-build": "tsc",
     "render-start": "node dist/index.js"

@@ -22,11 +22,15 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || JWT_SECRET + '_refr
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_TIME_MS = 30 * 60 * 1000; // 30 minutes
 
+const accessExpires =
+    process.env.JWT_ACCESS_EXPIRES ||
+    (process.env.NODE_ENV === 'production' ? '15m' : '1h');
+
 const generateTokens = (userId: string, role: string) => {
     const accessToken = jwt.sign(
         { user: { id: userId, role } },
         JWT_SECRET,
-        { expiresIn: '15m' } // Short-lived access token
+        { expiresIn: accessExpires }
     );
     const refreshToken = jwt.sign(
         { user: { id: userId, role } },

@@ -3,7 +3,7 @@ import type { Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
 import multer from 'multer';
-import { VideoUpload, LessonAccess, Payment, Screenshot, CourseProgress } from '../models/VideoWorkflow.js';
+import { VideoUpload, LessonAccess, LessonPayment, Screenshot, CourseProgress } from '../models/VideoWorkflow.js';
 import type { AuthRequest } from '../middleware/authEnhanced.js';
 import { authenticate, checkRole } from '../middleware/authEnhanced.js';
 import { validationResult } from 'express-validator';
@@ -277,7 +277,7 @@ export const getAccessibleLessons = [
                 courseId
             })
             .populate('lessonId', 'title order videoUrl')
-            .populate('paymentInfo')
+            .populate('paymentInfo.paymentId')
             .sort({ 'lessonId.order': 1 });
 
             // Determine which lessons are accessible
@@ -351,7 +351,7 @@ export const processPayment = [
             }
 
             // Create payment record
-            const payment = new Payment({
+            const payment = new LessonPayment({
                 studentId,
                 courseId: lessonAccess.courseId,
                 lessonId,

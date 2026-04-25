@@ -5,6 +5,17 @@ import Course from '../models/Course.js';
 import User from '../models/User.js';
 import Progress from '../models/Progress.js';
 import logger from '../utils/logger.js';
+import {
+    deleteTutorSession,
+    getTutorSession,
+    listTutorSessionsForUser,
+    saveTutorSession,
+    type LearningSession,
+} from '../services/aiTutorSessionStore.js';
+import {
+    setOnInsertUserCourseRefs,
+    userCourseRefQuery,
+} from '../utils/normalizedRefs.js';
 
 // Initialize AI clients
 const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
@@ -17,26 +28,6 @@ const ensureGeminiAvailable = (res: Response): boolean => {
     });
     return false;
 };
-
-interface ChatMessage {
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-    timestamp: Date;
-}
-
-interface LearningSession {
-    userId: string;
-    courseId: string;
-    messages: ChatMessage[];
-    learningStyle: 'visual' | 'auditory' | 'kinesthetic' | 'reading';
-    difficultyLevel: 'beginner' | 'intermediate' | 'advanced';
-    currentTopic: string;
-    strugglingAreas: string[];
-    strengths: string[];
-}
-
-// In-memory session storage (use Redis in production)
-const activeSessions = new Map<string, LearningSession>();
 
 export const startTutorSession = async (req: AuthRequest, res: Response) => {
     try {
@@ -52,7 +43,7 @@ export const startTutorSession = async (req: AuthRequest, res: Response) => {
         const [course, user, progress] = await Promise.all([
             Course.findById(courseId),
             User.findById(userId),
-            Progress.findOne({ userId, courseId })
+            Progress.findOne(userCourseRefQuery(userId, courseId))
         ]);
 
         if (!course) {
@@ -101,7 +92,7 @@ export const startTutorSession = async (req: AuthRequest, res: Response) => {
             timestamp: new Date()
         });
 
-        activeSessions.set(sessionId, session);
+        await saveTutorSession(sessionId, session);
 
         res.json({
             sessionId,
@@ -127,7 +118,7 @@ export const chatWithTutor = async (req: AuthRequest, res: Response) => {
             return res.status(401).json({ error: 'User not authenticated' });
         }
 
-        const session = activeSessions.get(sessionId);
+        const session = await getTutorSession(sessionId);
         if (!session || session.userId !== userId) {
             return res.status(404).json({ error: 'Session not found' });
         }
@@ -186,6 +177,7 @@ export const chatWithTutor = async (req: AuthRequest, res: Response) => {
 
         // Update session with new insights
         await updateLearningInsights(session, message, tutorResponse);
+        await saveTutorSession(sessionId, session);
 
         res.json({
             response: tutorResponse,
@@ -206,7 +198,7 @@ export const generateQuizFromChat = async (req: AuthRequest, res: Response) => {
         const { sessionId, questionCount = 5, difficulty } = req.body;
         const userId = req.user?.id;
 
-        const session = activeSessions.get(sessionId);
+        const session = await getTutorSession(sessionId);
         if (!session || session.userId !== userId) {
             return res.status(404).json({ error: 'Session not found' });
         }
@@ -271,7 +263,7 @@ export const getPersonalizedStudyPlan = async (req: AuthRequest, res: Response) 
 
         const [course, progress, user] = await Promise.all([
             Course.findById(courseId),
-            Progress.findOne({ userId, courseId }),
+            Progress.findOne(userCourseRefQuery(userId, courseId)),
             User.findById(userId)
         ]);
 
@@ -347,7 +339,7 @@ export const endTutorSession = async (req: AuthRequest, res: Response) => {
         const { sessionId } = req.body;
         const userId = req.user?.id;
 
-        const session = activeSessions.get(sessionId);
+        const session = await getTutorSession(sessionId);
         if (!session || session.userId !== userId) {
             return res.status(404).json({ error: 'Session not found' });
         }
@@ -377,8 +369,9 @@ export const endTutorSession = async (req: AuthRequest, res: Response) => {
 
         // Update user progress with insights
         await Progress.findOneAndUpdate(
-            { userId, courseId: session.courseId },
+            userCourseRefQuery(userId, session.courseId),
             {
+                $setOnInsert: setOnInsertUserCourseRefs(userId, session.courseId),
                 $push: {
                     tutoringSessions: {
                         sessionId,
@@ -397,7 +390,7 @@ export const endTutorSession = async (req: AuthRequest, res: Response) => {
         );
 
         // Clean up session
-        activeSessions.delete(sessionId);
+        await deleteTutorSession(sessionId);
 
         res.json({
             summary,
@@ -467,9 +460,8 @@ export const getActiveSessions = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user?.id;
         
-        const userSessions = Array.from(activeSessions.entries())
-            .filter(([_, session]) => session.userId === userId)
-            .map(([sessionId, session]) => ({
+        const userSessions = (await listTutorSessionsForUser(userId || ''))
+            .map(({ sessionId, session }) => ({
                 sessionId,
                 courseId: session.courseId,
                 currentTopic: session.currentTopic,

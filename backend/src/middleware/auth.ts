@@ -2,6 +2,7 @@
 import rateLimit from 'express-rate-limit';
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import logger from '../utils/logger.js';
 
 // General API rate limit
 export const generalLimiter = rateLimit({
@@ -81,8 +82,15 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
         req.user = decoded.user;
         next();
     } catch (err) {
-        console.error('JWT verification error:', err);
-        return res.status(401).json({ message: 'Token is not valid' });
+        if (err instanceof Error && err.name === 'TokenExpiredError') {
+            return res
+                .status(401)
+                .json({ message: 'Access token expired', code: 'TOKEN_EXPIRED' });
+        }
+        logger.warn('JWT verification failed (non-expiry)');
+        return res
+            .status(401)
+            .json({ message: 'Token is not valid', code: 'INVALID_TOKEN' });
     }
 };
 

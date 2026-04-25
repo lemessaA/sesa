@@ -33,6 +33,9 @@ import forumRoutes from './routes/forum.js';
 import messageRoutes from './routes/messages.js';
 import evaluationRoutes from './routes/evaluations.js';
 import videoWorkflowRoutes from './routes/videoWorkflowRoutes.js';
+import aiRoutes from './routes/ai.js';
+import { agentV1Router, agentLegacyRouter, getApiV1Index } from './routes/agentApi.js';
+import aiTutorRoutes from './routes/aiTutor.js';
 import quizRoutes from './routes/quizzes.js';
 import assignmentRoutes from './routes/assignments.js';
 import gamificationRoutes from './routes/gamification.js';
@@ -78,6 +81,12 @@ if (missing.length > 0) {
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+if (process.env.NODE_ENV === 'production' && !(process.env.REDIS_URL || process.env.REDIS_URI)) {
+    logger.warn(
+        '[Redis] REDIS_URL is not set in production. Socket scaling, collaboration rooms, and AI tutor sessions will fall back to instance-local memory.'
+    );
+}
 
 // ── Security Middlewares ──────────────────────────────────────────────────────
 
@@ -177,8 +186,12 @@ let isDbConnected = false;
 app.use('/api', (req: express.Request, res: express.Response, next: express.NextFunction) => {
     // Health check always passes through
     if (req.path === '/health') return next();
-    // AI routes work without DB (they call Gemini API)
-    if (req.path.startsWith('/ai')) return next();
+    // v1 index + agent health: no DB
+    if (req.path === '/v1' && req.method === 'GET') return next();
+    if (req.path === '/v1/agent/health' && req.method === 'GET') return next();
+    if (req.path === '/ai-agent/health' && req.method === 'GET') return next();
+    // Basic AI routes can work without DB; AI tutor still depends on MongoDB.
+    if (req.path === '/ai' || req.path.startsWith('/ai/')) return next();
     if (!isDbConnected) {
         logger.warn(`[API] 503 attempt for ${req.path} - MongoDB not ready`);
         return res.status(503).json({
@@ -234,6 +247,19 @@ app.use('/api/forums', forumRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/evaluations', evaluationRoutes);
 app.use('/api/video-workflow', videoWorkflowRoutes);
+app.use('/api/ai', aiRoutes);
+app.get('/api/v1', getApiV1Index);
+app.use(
+  '/api/ai-agent',
+  (req, res, next) => {
+    res.set('Deprecation', 'true');
+    res.set('Link', '</api/v1/agent>; rel="successor-version"');
+    next();
+  },
+  agentLegacyRouter
+);
+app.use('/api/v1/agent', agentV1Router);
+app.use('/api/ai-tutor', aiTutorRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/gamification', gamificationRoutes);
@@ -247,7 +273,12 @@ app.use('/api/live-stream', liveStreamRoutes);
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.get('/', (_req, res) => {
-    res.json({ name: 'SESA API', version: '2.0.0', status: 'running' });
+    res.json({
+        name: 'SESA API',
+        version: '2.0.0',
+        status: 'running',
+        _links: { v1: '/api/v1' },
+    });
 });
 
 // ── Error Handling (MUST be last) ─────────────────────────────────────────────

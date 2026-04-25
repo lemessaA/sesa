@@ -4,6 +4,7 @@ import Progress from '../models/Progress.js';
 import { authenticate, type AuthRequest } from '../middleware/auth.js';
 import { GamificationService } from '../services/gamificationService.js';
 import Course from '../models/Course.js';
+import { userCourseRefQuery, userRefQuery } from '../utils/normalizedRefs.js';
 
 const router = express.Router();
 
@@ -19,7 +20,7 @@ router.post('/update', authenticate, async (req: AuthRequest, res: Response) => 
             return res.status(400).json({ message: 'Course ID is required' });
         }
 
-        let progress = await Progress.findOne({ user: userId, course: courseId });
+        let progress = await Progress.findOne(userCourseRefQuery(userId, courseId));
 
         if (!progress) {
             progress = new Progress({
@@ -61,7 +62,7 @@ router.post('/complete-lesson', authenticate, async (req: AuthRequest, res: Resp
             return res.status(400).json({ message: 'Course ID and Lesson Index are required' });
         }
 
-        let progress = await Progress.findOne({ user: userId, course: courseId });
+        let progress = await Progress.findOne(userCourseRefQuery(userId, courseId));
         const course = await Course.findById(courseId);
 
         if (!course) return res.status(404).json({ message: 'Course not found' });
@@ -129,7 +130,7 @@ router.get('/:courseId', authenticate, async (req: any, res: Response) => {
         const userId = req.user.id;
         const { courseId } = req.params;
 
-        const progress = await Progress.findOne({ user: userId, course: courseId });
+        const progress = await Progress.findOne(userCourseRefQuery(userId, courseId));
         if (!progress) {
             return res.json({ watchCount: 0, totalMinutesWatched: 0 });
         }
@@ -147,7 +148,7 @@ router.get('/:courseId', authenticate, async (req: any, res: Response) => {
 router.get('/', authenticate, async (req: any, res: Response) => {
     try {
         const userId = req.user.id;
-        const progressRecords = await Progress.find({ user: userId }).populate('course', 'title');
+        const progressRecords = await Progress.find(userRefQuery(userId)).populate('course courseId', 'title');
         res.json(progressRecords);
     } catch (err) {
         console.error(err);

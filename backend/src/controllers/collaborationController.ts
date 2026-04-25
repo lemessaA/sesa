@@ -1,63 +1,21 @@
 import type { Response } from 'express';
 import type { AuthRequest } from '../middleware/auth.js';
-import mongoose from 'mongoose';
 import Course from '../models/Course.js';
 import User from '../models/User.js';
 import logger from '../utils/logger.js';
 import { getIO } from '../utils/socket.js';
-
-interface StudyRoom {
-    id: string;
-    name: string;
-    courseId: string;
-    hostId: string;
-    participants: {
-        userId: string;
-        userName: string;
-        role: 'host' | 'participant';
-        joinedAt: Date;
-        isActive: boolean;
-    }[];
-    isActive: boolean;
-    maxParticipants: number;
-    settings: {
-        allowScreenShare: boolean;
-        allowChat: boolean;
-        allowVoice: boolean;
-        isPublic: boolean;
-        requireApproval: boolean;
-    };
-    currentActivity: {
-        type: 'discussion' | 'quiz' | 'presentation' | 'study' | 'break';
-        startedAt: Date;
-        data?: any;
-    };
-    createdAt: Date;
-}
-
-interface WhiteboardState {
-    roomId: string;
-    elements: {
-        id: string;
-        type: 'line' | 'rectangle' | 'circle' | 'text' | 'arrow';
-        x: number;
-        y: number;
-        width?: number;
-        height?: number;
-        points?: number[];
-        text?: string;
-        color: string;
-        strokeWidth: number;
-        userId: string;
-        timestamp: Date;
-    }[];
-    lastModified: Date;
-}
-
-// In-memory storage (use Redis in production)
-const activeRooms = new Map<string, StudyRoom>();
-const whiteboards = new Map<string, WhiteboardState>();
-const roomMessages = new Map<string, any[]>();
+import {
+    CLOSED_ROOM_TTL_SECONDS,
+    deleteStudyRoom,
+    getRoomMessages,
+    getStudyRoom,
+    getWhiteboard,
+    listStudyRooms,
+    saveRoomMessages,
+    saveStudyRoom,
+    saveWhiteboard,
+    type StudyRoom,
+} from '../services/collaborationStateStore.js';
 
 export const createStudyRoom = async (req: AuthRequest, res: Response) => {
     try {
@@ -110,17 +68,17 @@ export const createStudyRoom = async (req: AuthRequest, res: Response) => {
             createdAt: new Date()
         };
 
-        activeRooms.set(roomId, studyRoom);
+        await saveStudyRoom(studyRoom);
         
         // Initialize whiteboard for room
-        whiteboards.set(roomId, {
+        await saveWhiteboard(roomId, {
             roomId,
             elements: [],
             lastModified: new Date()
         });
 
         // Initialize chat for room
-        roomMessages.set(roomId, []);
+        await saveRoomMessages(roomId, []);
 
         // Emit room created event
         const io = getIO();
@@ -154,7 +112,7 @@ export const joinStudyRoom = async (req: AuthRequest, res: Response) => {
             return res.status(401).json({ error: 'User not authenticated' });
         }
 
-        const room = activeRooms.get(roomId);
+        const room = await getStudyRoom(roomId);
         if (!room) {
             return res.status(404).json({ error: 'Study room not found' });
         }
@@ -182,8 +140,12 @@ export const joinStudyRoom = async (req: AuthRequest, res: Response) => {
             });
         }
 
+        await saveStudyRoom(room);
+
         // Get course info
         const course = await Course.findById(room.courseId);
+        const whiteboard = await getWhiteboard(roomId);
+        const recentMessages = (await getRoomMessages(roomId)).slice(-50);
 
         // Emit user joined event to room
         const io = getIO();
@@ -196,8 +158,8 @@ export const joinStudyRoom = async (req: AuthRequest, res: Response) => {
         res.json({
             room,
             course: course ? { title: course.title, description: course.description } : null,
-            whiteboard: whiteboards.get(roomId),
-            recentMessages: roomMessages.get(roomId)?.slice(-50) || []
+            whiteboard,
+            recentMessages
         });
 
     } catch (error) {
@@ -211,7 +173,7 @@ export const leaveStudyRoom = async (req: AuthRequest, res: Response) => {
         const { roomId } = req.params;
         const userId = req.user?.id;
 
-        const room = activeRooms.get(roomId);
+        const room = await getStudyRoom(roomId);
         if (!room) {
             return res.status(404).json({ error: 'Study room not found' });
         }
@@ -235,6 +197,8 @@ export const leaveStudyRoom = async (req: AuthRequest, res: Response) => {
             }
         }
 
+        await saveStudyRoom(room, room.isActive ? undefined : CLOSED_ROOM_TTL_SECONDS);
+
         // Emit user left event
         const io = getIO();
         io.to(roomId).emit('user_left', {
@@ -255,7 +219,7 @@ export const getActiveRooms = async (req: AuthRequest, res: Response) => {
     try {
         const { courseId } = req.query;
         
-        let rooms = Array.from(activeRooms.values()).filter(room => room.isActive);
+        let rooms = (await listStudyRooms()).filter(room => room.isActive);
         
         if (courseId) {
             rooms = rooms.filter(room => room.courseId === courseId);
@@ -291,7 +255,7 @@ export const updateWhiteboard = async (req: AuthRequest, res: Response) => {
         const { elements } = req.body;
         const userId = req.user?.id;
 
-        const room = activeRooms.get(roomId);
+        const room = await getStudyRoom(roomId);
         if (!room) {
             return res.status(404).json({ error: 'Study room not found' });
         }
@@ -301,10 +265,11 @@ export const updateWhiteboard = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'Not authorized to edit whiteboard' });
         }
 
-        const whiteboard = whiteboards.get(roomId);
+        const whiteboard = await getWhiteboard(roomId);
         if (whiteboard) {
             whiteboard.elements = elements;
             whiteboard.lastModified = new Date();
+            await saveWhiteboard(roomId, whiteboard);
             
             // Emit whiteboard update to all room participants
             const io = getIO();
@@ -329,7 +294,7 @@ export const sendRoomMessage = async (req: AuthRequest, res: Response) => {
         const { message, type = 'text' } = req.body;
         const userId = req.user?.id;
 
-        const room = activeRooms.get(roomId);
+        const room = await getStudyRoom(roomId);
         if (!room) {
             return res.status(404).json({ error: 'Study room not found' });
         }
@@ -352,9 +317,9 @@ export const sendRoomMessage = async (req: AuthRequest, res: Response) => {
             timestamp: new Date()
         };
 
-        const messages = roomMessages.get(roomId) || [];
+        const messages = await getRoomMessages(roomId);
         messages.push(chatMessage);
-        roomMessages.set(roomId, messages);
+        await saveRoomMessages(roomId, messages);
 
         // Emit message to all room participants
         const io = getIO();
@@ -374,7 +339,7 @@ export const startGroupActivity = async (req: AuthRequest, res: Response) => {
         const { activityType, data } = req.body;
         const userId = req.user?.id;
 
-        const room = activeRooms.get(roomId);
+        const room = await getStudyRoom(roomId);
         if (!room) {
             return res.status(404).json({ error: 'Study room not found' });
         }
@@ -388,6 +353,7 @@ export const startGroupActivity = async (req: AuthRequest, res: Response) => {
             startedAt: new Date(),
             data
         };
+        await saveStudyRoom(room);
 
         // Emit activity started event
         const io = getIO();
@@ -413,7 +379,7 @@ export const getRoomAnalytics = async (req: AuthRequest, res: Response) => {
         const { roomId } = req.params;
         const userId = req.user?.id;
 
-        const room = activeRooms.get(roomId);
+        const room = await getStudyRoom(roomId);
         if (!room) {
             return res.status(404).json({ error: 'Study room not found' });
         }
@@ -422,8 +388,8 @@ export const getRoomAnalytics = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'Only room host can view analytics' });
         }
 
-        const messages = roomMessages.get(roomId) || [];
-        const whiteboard = whiteboards.get(roomId);
+        const messages = await getRoomMessages(roomId);
+        const whiteboard = await getWhiteboard(roomId);
 
         const analytics = {
             totalParticipants: room.participants.length,
@@ -453,7 +419,7 @@ export const closeStudyRoom = async (req: AuthRequest, res: Response) => {
         const { roomId } = req.params;
         const userId = req.user?.id;
 
-        const room = activeRooms.get(roomId);
+        const room = await getStudyRoom(roomId);
         if (!room) {
             return res.status(404).json({ error: 'Study room not found' });
         }
@@ -463,6 +429,13 @@ export const closeStudyRoom = async (req: AuthRequest, res: Response) => {
         }
 
         room.isActive = false;
+        await saveStudyRoom(room, CLOSED_ROOM_TTL_SECONDS);
+        const whiteboard = await getWhiteboard(roomId);
+        if (whiteboard) {
+            await saveWhiteboard(roomId, whiteboard, CLOSED_ROOM_TTL_SECONDS);
+        }
+        const messages = await getRoomMessages(roomId);
+        await saveRoomMessages(roomId, messages, CLOSED_ROOM_TTL_SECONDS);
 
         // Emit room closed event
         const io = getIO();
@@ -471,12 +444,12 @@ export const closeStudyRoom = async (req: AuthRequest, res: Response) => {
             closedAt: new Date()
         });
 
-        // Clean up after 1 hour
-        setTimeout(() => {
-            activeRooms.delete(roomId);
-            whiteboards.delete(roomId);
-            roomMessages.delete(roomId);
-        }, 60 * 60 * 1000);
+        // Without Redis the room remains in process memory, so clean it up explicitly.
+        if (!(process.env.REDIS_URL || process.env.REDIS_URI)) {
+            setTimeout(() => {
+                void deleteStudyRoom(roomId);
+            }, CLOSED_ROOM_TTL_SECONDS * 1000);
+        }
 
         res.json({ message: 'Study room closed successfully' });
 

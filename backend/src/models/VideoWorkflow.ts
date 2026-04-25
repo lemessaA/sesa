@@ -72,7 +72,7 @@ export interface ILessonAccess extends Document {
     updatedAt: Date;
 }
 
-// Payment Transaction Model
+// Lesson Payment Transaction Model
 export interface IPayment extends Document {
     studentId: Types.ObjectId;
     courseId: Types.ObjectId;
@@ -191,7 +191,7 @@ const LessonAccessSchema = new Schema({
         default: 'free' 
     },
     paymentInfo: {
-        paymentId: { type: Schema.Types.ObjectId, ref: 'Payment' },
+        paymentId: { type: Schema.Types.ObjectId, ref: 'LessonPayment' },
         amount: { type: Number, required: true, min: 0 },
         currency: { type: String, default: 'USD' },
         paidAt: { type: Date },
@@ -334,6 +334,7 @@ LessonAccessSchema.pre('save', function() {
 
 export const VideoUpload = mongoose.models.VideoUpload || mongoose.model<IVideoUpload>('VideoUpload', VideoUploadSchema);
 export const LessonAccess = mongoose.models.LessonAccess || mongoose.model<ILessonAccess>('LessonAccess', LessonAccessSchema);
-export const Payment = mongoose.models.Payment || mongoose.model<IPayment>('Payment', PaymentSchema);
+export const LessonPayment =
+    mongoose.models.LessonPayment || mongoose.model<IPayment>('LessonPayment', PaymentSchema);
 export const Screenshot = mongoose.models.Screenshot || mongoose.model<IScreenshot>('Screenshot', ScreenshotSchema);
 export const CourseProgress = mongoose.models.CourseProgress || mongoose.model<ICourseProgress>('CourseProgress', CourseProgressSchema);

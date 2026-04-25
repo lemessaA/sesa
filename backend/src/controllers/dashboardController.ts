@@ -449,3 +449,95 @@ async function getBasicDashboard(userId: string) {
         message: 'Welcome to your dashboard'
     };
 }
+
+function toStudentAgentContext(d: Record<string, any>, role: UserRole) {
+    return {
+        role,
+        stats: d.stats,
+        quickActions: d.quickActions,
+        enrolledCourses: (d.enrolledCourses || []).map((e: any) => ({
+            title: e.course?.title ?? 'Course',
+            courseId: String(e.course?._id ?? e.course ?? ''),
+        })),
+        progress: (d.progress || []).map((p: any) => ({
+            courseId: String(p.course?._id ?? p.course ?? ''),
+            completed: Boolean(p.completed),
+            minutesWatched: p.totalMinutesWatched ?? 0,
+        })),
+        recommendedCourses: (d.recommendedCourses || []).map((c: any) => ({
+            title: c.title,
+            courseId: String(c._id),
+            level: c.level,
+            instructor: c.instructor?.name,
+        })),
+    };
+}
+
+function toInstructorAgentContext(d: Record<string, any>, role: UserRole) {
+    return {
+        role,
+        stats: d.stats,
+        quickActions: d.quickActions,
+        myCourses: (d.myCourses || []).map((c: any) => ({
+            title: c.title,
+            courseId: String(c._id),
+            isPublished: Boolean(c.isPublished),
+            category: c.category?.name,
+        })),
+        pendingEnrollmentCount: d.pendingEnrollments?.length ?? 0,
+    };
+}
+
+/** Compact, JSON-serializable dashboard slice for the LangGraph personal agent (Node → Python). */
+export async function buildAgentDashboardContext(
+    userId: string,
+    role: UserRole
+): Promise<Record<string, unknown>> {
+    switch (role) {
+        case UserRole.STUDENT:
+        case UserRole.PREMIUM_STUDENT:
+        case UserRole.TRIAL_STUDENT:
+            return toStudentAgentContext(await getStudentDashboard(userId), role);
+        case UserRole.INSTRUCTOR:
+        case UserRole.ASSISTANT_INSTRUCTOR:
+        case UserRole.GUEST_INSTRUCTOR:
+            return toInstructorAgentContext(await getInstructorDashboard(userId), role);
+        case UserRole.SUPER_ADMIN:
+        case UserRole.ADMIN: {
+            const d = await getAdminDashboard(userId);
+            return { role, stats: d.stats, quickActions: d.quickActions };
+        }
+        case UserRole.MODERATOR: {
+            const d = await getModeratorDashboard(userId);
+            return { role, stats: d.stats, quickActions: d.quickActions };
+        }
+        case UserRole.CONTENT_MANAGER: {
+            const d = await getContentManagerDashboard(userId);
+            return { role, stats: d.stats, quickActions: d.quickActions };
+        }
+        case UserRole.FINANCE_MANAGER: {
+            const d = await getFinanceDashboard(userId);
+            return { role, stats: d.stats, quickActions: d.quickActions };
+        }
+        case UserRole.ANALYST: {
+            const d = await getAnalystDashboard(userId);
+            return { role, quickActions: d.quickActions };
+        }
+        case UserRole.REVIEWER: {
+            const d = await getReviewerDashboard(userId);
+            return { role, stats: d.stats, quickActions: d.quickActions };
+        }
+        case UserRole.SUPPORT_STAFF: {
+            const d = await getSupportDashboard(userId);
+            return {
+                role,
+                quickActions: d.quickActions,
+                pendingEnrollmentsCount: d.pendingEnrollments?.length ?? 0,
+            };
+        }
+        default: {
+            const d = await getBasicDashboard(userId);
+            return { role, userName: d.user?.name, message: d.message };
+        }
+    }
+}

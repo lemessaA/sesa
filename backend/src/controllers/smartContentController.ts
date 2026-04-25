@@ -1,14 +1,13 @@
 import type { Response } from 'express';
 import type { AuthRequest } from '../middleware/auth.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import OpenAI from 'openai';
 import Course from '../models/Course.js';
 import Quiz from '../models/Quiz.js';
 import Assignment from '../models/Assignment.js';
 import logger from '../utils/logger.js';
 
 // #region agent log
-fetch('http://127.0.0.1:7818/ingest/4f450924-d64f-4902-80aa-a4c928179828',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6502cb'},body:JSON.stringify({sessionId:'6502cb',runId:'pre-fix',hypothesisId:'H2',location:'smartContentController.ts:11',message:'AI env presence at module init',data:{hasOpenAI:Boolean(process.env.OPENAI_API_KEY),hasGemini:Boolean(process.env.GEMINI_API_KEY),hasGoogleAI:Boolean(process.env.GOOGLE_AI_API_KEY),nodeEnv:process.env.NODE_ENV||'unset'},timestamp:Date.now()})}).catch(()=>{});
+fetch('http://127.0.0.1:7818/ingest/4f450924-d64f-4902-80aa-a4c928179828',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6502cb'},body:JSON.stringify({sessionId:'6502cb',runId:'pre-fix',hypothesisId:'H2',location:'smartContentController.ts:11',message:'AI env presence at module init',data:{hasGroq:Boolean(process.env.GROQ_API_KEY),hasOpenAI:Boolean(process.env.OPENAI_API_KEY),hasGemini:Boolean(process.env.GEMINI_API_KEY),hasGoogleAI:Boolean(process.env.GOOGLE_AI_API_KEY),nodeEnv:process.env.NODE_ENV||'unset'},timestamp:Date.now()})}).catch(()=>{});
 // #endregion
 
 const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
@@ -18,19 +17,6 @@ if (!genAI) {
     // #region agent log
     fetch('http://127.0.0.1:7818/ingest/4f450924-d64f-4902-80aa-a4c928179828',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6502cb'},body:JSON.stringify({sessionId:'6502cb',runId:'pre-fix',hypothesisId:'H2',location:'smartContentController.ts:19',message:'Gemini client disabled due to missing key',data:{expectedVars:['GEMINI_API_KEY','GOOGLE_AI_API_KEY']},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
-}
-
-let openai: OpenAI | null = null;
-try {
-    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    // #region agent log
-    fetch('http://127.0.0.1:7818/ingest/4f450924-d64f-4902-80aa-a4c928179828',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6502cb'},body:JSON.stringify({sessionId:'6502cb',runId:'pre-fix',hypothesisId:'H1',location:'smartContentController.ts:27',message:'OpenAI client initialized',data:{hasOpenAI:Boolean(process.env.OPENAI_API_KEY)},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-} catch (err: any) {
-    // #region agent log
-    fetch('http://127.0.0.1:7818/ingest/4f450924-d64f-4902-80aa-a4c928179828',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6502cb'},body:JSON.stringify({sessionId:'6502cb',runId:'pre-fix',hypothesisId:'H1',location:'smartContentController.ts:31',message:'OpenAI client initialization failed',data:{errorName:err?.name||'UnknownError',errorMessage:err?.message||'unknown'},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    throw err;
 }
 
 export const generateCourseOutline = async (req: AuthRequest, res: Response) => {

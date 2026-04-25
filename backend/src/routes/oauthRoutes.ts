@@ -116,11 +116,15 @@ passport.deserializeUser(async (id: string, done) => {
 
 // ── OAuth helpers ─────────────────────────────────────────────────────────────
 
+const accessExpires =
+    process.env.JWT_ACCESS_EXPIRES ||
+    (process.env.NODE_ENV === 'production' ? '15m' : '1h');
+
 const handleOAuthSuccess = async (res: Response, user: any) => {
     const accessToken = jwt.sign(
         { user: { id: user.id, role: user.role } },
         JWT_SECRET,
-        { expiresIn: '15m' }
+        { expiresIn: accessExpires }
     );
     const refreshToken = jwt.sign(
         { user: { id: user.id, role: user.role } },

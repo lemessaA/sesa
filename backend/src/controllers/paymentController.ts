@@ -10,6 +10,7 @@ import { notifyUser } from '../utils/socket.js';
 import { GamificationService } from '../services/gamificationService.js';
 import { AppError } from '../middleware/errorHandler.js';
 import logger from '../utils/logger.js';
+import { userCourseRefQuery, userRefQuery } from '../utils/normalizedRefs.js';
 
 // Create payment intent
 export const createPayment = async (req: AuthRequest, res: Response) => {
@@ -53,8 +54,7 @@ export const createPayment = async (req: AuthRequest, res: Response) => {
 
         // Also clean up any failed/rejected payments for this user and course
         await Payment.deleteMany({
-            user: userId,
-            course: courseId,
+            ...userCourseRefQuery(userId, courseId),
             status: { $in: ['failed', 'rejected'] }
         });
 
@@ -171,8 +171,9 @@ export const confirmPayment = async (req: AuthRequest, res: Response) => {
 export const getUserPayments = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user!.id;
-        const payments = await Payment.find({ user: userId })
-            .populate('course', 'title price thumbnailUrl')
+        const payments = await Payment.find(userRefQuery(userId))
+            .populate('user userId', 'name email')
+            .populate('course courseId', 'title price thumbnailUrl')
             .sort({ createdAt: -1 });
 
         res.json(payments);
@@ -196,8 +197,8 @@ export const getAllPayments = async (req: AuthRequest, res: Response) => {
         }
 
         const payments = await Payment.find(filter)
-            .populate('user', 'name email')
-            .populate('course', 'title price')
+            .populate('user userId', 'name email')
+            .populate('course courseId', 'title price')
             .sort({ createdAt: -1 });
 
         const totalRevenue = await Payment.aggregate([

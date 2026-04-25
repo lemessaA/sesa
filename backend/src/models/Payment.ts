@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { syncUserCourseRefs } from '../utils/normalizedRefs.js';
 
 export interface IPayment extends Document {
   // New fields (smart enrollment)
@@ -41,6 +42,16 @@ const PaymentSchema: Schema = new Schema({
   proofUrl: { type: String }, // For manual payment proof
   receiptImage: { type: String }, // Receipt image URL
 }, { timestamps: true });
+
+PaymentSchema.pre('validate', function () {
+  syncUserCourseRefs(this as unknown as {
+    userId?: mongoose.Types.ObjectId;
+    user?: mongoose.Types.ObjectId;
+    courseId?: mongoose.Types.ObjectId;
+    course?: mongoose.Types.ObjectId;
+    set: (path: string, value: mongoose.Types.ObjectId | undefined) => void;
+  });
+});
 
 // Index for quick lookups
 PaymentSchema.index({ userId: 1, courseId: 1 });
