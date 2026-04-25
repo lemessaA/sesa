@@ -13,7 +13,7 @@ from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
 
 from app.backend_client import fetch_agent_dashboard_from_backend
-from app.sesa_context import APP_GUIDE
+from app.sesa_context import AGENT_PERSONA, APP_GUIDE
 
 
 class RouterOut(BaseModel):
@@ -79,6 +79,27 @@ def _mode_suffix(state: AgentState) -> str:
     return "\n\n" + _response_mode_extras(str(state.get("response_mode") or "default"))
 
 
+def _history_limit(state: AgentState) -> int:
+    mode = (state.get("response_mode") or "default").lower()
+    return 12 if mode in ("conversation", "conversation_history") else 6
+
+
+def _chat_messages(state: AgentState, system: str) -> list[HumanMessage | SystemMessage]:
+    """Reusable multi-turn context for the personal assistant (same pattern across intents)."""
+    lim = _history_limit(state)
+    hist = state.get("conversation_history") or []
+    msgs: list[HumanMessage | SystemMessage] = [SystemMessage(content=system)]
+    for turn in hist[-lim:]:
+        role = turn.get("role", "user")
+        content = turn.get("content", "")
+        if role == "assistant":
+            msgs.append(SystemMessage(content="Previous assistant: " + str(content)[:1500]))
+        else:
+            msgs.append(HumanMessage(content=str(content)[:1500]))
+    msgs.append(HumanMessage(content=state["user_message"]))
+    return msgs
+
+
 def _llm() -> ChatGroq:
     key = os.environ.get("GROQ_API_KEY", "").strip()
     if not key:
@@ -125,6 +146,7 @@ def router_node(state: AgentState) -> dict[str, str]:
         "- quiz: user wants generated quiz questions, practice tests, or 'drill me' on a topic.\n"
         "- recommend: what to study or which course to take next (uses dashboard, not their PDF content).\n"
         "- general: other questions, including if it's vague or not clearly about an uploaded file.\n"
+        "If the user asks what you can do, your features, or how to use this assistant, prefer app_help (or general if purely meta and not SESA-specific).\n"
         "If both document_qa and another category might fit, choose document_qa when the user clearly refers to their uploaded file content.\n"
         + rag_note
         + "Return only the structured intent field."
@@ -246,7 +268,7 @@ def refresh_dashboard_node(state: AgentState) -> dict[str, Any]:
     base = os.environ.get("BACKEND_INTERNAL_API_BASE", "").strip()
     if not uid or not base:
         return {}
-    if intent not in ("recommend", "app_help"):
+    if intent not in ("recommend", "app_help", "quiz"):
         return {}
     try:
         fresh = fetch_agent_dashboard_from_backend(base, uid)
@@ -268,21 +290,19 @@ def app_help_node(state: AgentState) -> dict[str, str]:
     llm = _llm()
     dash = _dash_str(state)
     sys = (
-        APP_GUIDE
+        AGENT_PERSONA
+        + "\n\n"
+        + APP_GUIDE
         + "\n\nCurrent user role: "
         + state.get("role", "student")
         + "\nDashboard snapshot (JSON):\n"
         + dash
         + _rag_block(state)
         + _mode_suffix(state)
-        + "\nGive short, actionable steps. Mention quickActions routes when relevant."
+        + "\nGive short, actionable steps. Mention quickActions routes when relevant. "
+        "Use prior messages if the user is following up (e.g. 'where is that', 'I don't see it')."
     )
-    text = llm.invoke(
-        [
-            SystemMessage(content=sys),
-            HumanMessage(content=state["user_message"]),
-        ]
-    ).content
+    text = llm.invoke(_chat_messages(state, sys)).content
     return {"reply": str(text).strip()}
 
 
@@ -290,18 +310,19 @@ def quiz_node(state: AgentState) -> dict[str, Any]:
     llm = _llm()
     dash = _dash_str(state)
     sys = (
-        "You write educational quiz JSON for the SESA app. "
-        "Use the user's message as the topic. If the dashboard lists enrolled or recommended courses, prefer those titles when relevant.\n"
-        "When RETRIEVED SOURCES are given, base questions on that material when it fits the topic.\n"
+        AGENT_PERSONA
+        + "\n\n"
+        "You write educational quiz JSON for the SESA app (dynamic, per request). "
+        "Use the latest user message as the main topic. If the conversation or dashboard mentions an enrolled or in-progress course, align the quiz with that. "
+        "If RETRIEVED SOURCES (uploads) are present and match the topic, base questions on that material. "
+        "Vary difficulty as requested, default to a mix of easy/medium.\n"
         "Respond with a single JSON object ONLY, no markdown, shape:\n"
         '{"questions":[{"question":"str","type":"multiple_choice|true_false|short_answer","options":["A","B","C","D"] or [],"correct_answer":0 or "text","explanation":"str","difficulty":"easy|medium|hard"}]}\n'
         f"Dashboard JSON (may be partial):\n{dash}"
         + _rag_block(state)
         + _mode_suffix(state)
     )
-    raw = llm.invoke(
-        [SystemMessage(content=sys), HumanMessage(content=state["user_message"])]
-    ).content
+    raw = llm.invoke(_chat_messages(state, sys)).content
     raw_s = str(raw).strip()
     raw_s = re.sub(r"^```(?:json)?\s*", "", raw_s)
     raw_s = re.sub(r"\s*```$", "", raw_s)
@@ -324,23 +345,22 @@ def recommend_node(state: AgentState) -> dict[str, Any]:
     llm = _llm()
     dash = _dash_str(state)
     sys = (
-        "You are a learning coach for SESA. Using the dashboard JSON and any RETRIEVED SOURCES, suggest concrete next steps "
-        "(which course to open, whether to browse recommendations, certificates to pursue, or time on in-progress courses). "
-        "Also output structured recommendations as JSON embedded in your answer in this exact pattern on the last line:\n"
+        AGENT_PERSONA
+        + "\n\n"
+        "You are a learning coach for SESA. Using the live dashboard JSON and any RETRIEVED SOURCES, suggest concrete, personalized next steps "
+        "(which course to open, whether to browse recommendations, certificates, or focus time on in-progress courses with low completion). "
+        "Reference quickActions and enrollment/progress fields when they appear in the snapshot. "
+        "If the user message refers to a prior turn, continue that thread. "
+        "Also output structured recommendations in your answer: on the last line, exactly this pattern:\n"
         "RECOMMENDATIONS_JSON::"
         '[{"title":"...","reason":"...","courseId":"optional id from snapshot"}]\n'
-        "The last line must start with RECOMMENDATIONS_JSON:: followed by valid JSON array."
+        "The last line must start with RECOMMENDATIONS_JSON:: followed by a valid JSON array."
         "\nDashboard:\n"
         + dash
         + _rag_block(state)
         + _mode_suffix(state)
     )
-    text = llm.invoke(
-        [
-            SystemMessage(content=sys),
-            HumanMessage(content=state["user_message"]),
-        ]
-    ).content
+    text = llm.invoke(_chat_messages(state, sys)).content
     full = str(text).strip()
     recs: list[dict[str, Any]] = []
     reply = full
@@ -402,16 +422,15 @@ def document_qa_node(state: AgentState) -> dict[str, str]:
             ),
         }
     llm = _llm()
-    mode = (state.get("response_mode") or "default").lower()
-    limit = 12 if mode in ("conversation", "conversation_history") else 6
-    hist = state.get("conversation_history") or []
     is_sync = rctx.startswith("SYNC_INFO:") or "SYNC_INFO" in rblock
     detail = (
         "Give a thorough answer: use sections or bullet points as appropriate. For tutorial mode, use numbered steps. "
         "For research mode, use bullet facts and name the file for each. "
     )
     sys = (
-        (detail if not is_sync else "")
+        AGENT_PERSONA
+        + "\n\n"
+        + (detail if not is_sync else "")
         + "The user is asking about their OWN files. You MUST follow the information below. "
         "NEVER state that the user has no upload if USERFILES or RETRIEVED SOURCES / SYNC_INFO shows files. "
         "Do not replace this with a generic dashboard/JSON walkthrough unless the user asked about the SESA app UI. "
@@ -420,16 +439,7 @@ def document_qa_node(state: AgentState) -> dict[str, str]:
         + rblock
         + _mode_suffix(state)
     )
-    msgs: list[HumanMessage | SystemMessage] = [SystemMessage(content=sys)]
-    for turn in hist[-limit:]:
-        role = turn.get("role", "user")
-        content = turn.get("content", "")
-        if role == "assistant":
-            msgs.append(SystemMessage(content="Previous assistant: " + content[:1500]))
-        else:
-            msgs.append(HumanMessage(content=content[:1500]))
-    msgs.append(HumanMessage(content=state["user_message"]))
-    text = llm.invoke(msgs).content
+    text = llm.invoke(_chat_messages(state, sys)).content
     return {"reply": str(text).strip()}
 
 
@@ -443,30 +453,26 @@ def general_node(state: AgentState) -> dict[str, str]:
         else ""
     )
     sys = (
+        AGENT_PERSONA
+        + "\n\n"
         "You are SafeEdu SESA assistant: helpful, concise, friendly. "
         + rag_line
-        + "You may reference dashboard JSON and RETRIEVED SOURCES to personalize and ground answers.\n"
+        + "You may reference dashboard JSON and RETRIEVED SOURCES to personalize and ground answers. "
+        "If the user might benefit from a structured quiz or next-step plan, you may briefly offer those as follow-ups, but answer their actual question first.\n"
         + dash
         + _rag_block(state)
         + _mode_suffix(state)
     )
-    mode = (state.get("response_mode") or "default").lower()
-    limit = 12 if mode in ("conversation", "conversation_history") else 6
-    hist = state.get("conversation_history") or []
-    msgs = [SystemMessage(content=sys)]
-    for turn in hist[-limit:]:
-        role = turn.get("role", "user")
-        content = turn.get("content", "")
-        if role == "assistant":
-            msgs.append(SystemMessage(content="Previous assistant: " + content[:1500]))
-        else:
-            msgs.append(HumanMessage(content=content[:1500]))
-    msgs.append(HumanMessage(content=state["user_message"]))
-    text = llm.invoke(msgs).content
+    text = llm.invoke(_chat_messages(state, sys)).content
     return {"reply": str(text).strip()}
 
 
 def build_graph():
+    """
+    Personal assistant graph: RAG attach → intent router → optional live dashboard refresh
+    (app_help, recommend, quiz) → specialist node. Intents map to “tools” conceptually:
+    app help, dynamic quiz JSON, dashboard-grounded recommendations, document QA, general.
+    """
     g = StateGraph(AgentState)
     g.add_node("attach_rag", attach_rag_node)
     g.add_node("router", router_node)

@@ -11,7 +11,10 @@ interface ChatMessage {
 }
 
 const QUICK_ACTIONS = [
+    { label: '✨ What can you do?', query: 'What can you help me with in SESA? List your main capabilities in short bullets.' },
     { label: '📄 My uploaded file', query: 'Summarize the main points from my uploaded document in 3–5 bullet points.' },
+    { label: '❓ Quiz me', query: 'Give me 5 practice questions on a topic that matches one of my current courses, with answers at the end.' },
+    { label: '🎯 What next?', query: 'Based on my dashboard, what should I focus on this week? Give specific next steps.' },
     { label: '📚 How to enroll?', query: 'How do I enroll in a course?' },
     { label: '💳 Payment options', query: 'What payment methods do you accept?' },
     { label: '📊 My dashboard', query: 'What can I see in my dashboard?' },

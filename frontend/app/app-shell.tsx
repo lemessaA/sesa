@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
 import { ToastContainer } from 'react-toastify';
@@ -9,6 +9,7 @@ import Navbar from '@/components/Navbar';
 import GlobalPopup from '@/components/GlobalPopup';
 import Footer from '@/components/Footer';
 import BackToTop from '@/components/BackToTop';
+import AIHelper from '@/components/AIHelper';
 import SafeEduConcierge from '@/components/SafeEduConcierge';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -38,7 +39,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <main className="flex-grow">{children}</main>
             {showPublicChrome && <Footer />}
             {showPublicChrome && <BackToTop />}
-            {isAuthenticated && <SafeEduConcierge />}
+            {isAuthenticated && isAppContent && <AIHelper />}
+            {isAuthenticated && !isAppContent && <SafeEduConcierge />}
 
             {/* Toast Notifications */}
             <ToastContainer
