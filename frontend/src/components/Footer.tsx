@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion } from 'framer-motion';
 import {
     Facebook,
@@ -12,7 +12,7 @@ import {
     Twitter,
     Youtube,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link } from '@/lib/navigation';
 import { useLanguage } from '../context/LanguageContext';
 
 type FooterProps = {

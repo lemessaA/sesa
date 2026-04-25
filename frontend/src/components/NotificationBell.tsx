@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, X, CheckCheck, Trash2, ExternalLink, BookOpen, CreditCard, GraduationCap, Megaphone, Info } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -51,7 +51,7 @@ const NotificationBell: React.FC = () => {
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
     const headers = { Authorization: `Bearer ${token}` };
 

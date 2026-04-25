@@ -1,4 +1,4 @@
-// Enhanced Payment Verification Component with Preview
+﻿// Enhanced Payment Verification Component with Preview
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -259,9 +259,9 @@ const PaymentVerification: React.FC = () => {
                                                 </p>
                                                 <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-500">
                                                     <span>${transaction.amount}</span>
-                                                    <span>•</span>
+                                                    <span>â€¢</span>
                                                     <span>{transaction.method}</span>
-                                                    <span>•</span>
+                                                    <span>â€¢</span>
                                                     <span>{transaction.createdAt.toLocaleDateString()}</span>
                                                 </div>
                                                 <div className="mt-2">

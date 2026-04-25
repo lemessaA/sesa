@@ -1,11 +1,11 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion } from 'framer-motion';
 import { 
     Zap, Award, Trophy, Rocket, Sparkles, 
     Download, Headphones, MessageSquare, Flame, 
     Crown, Diamond, TrendingUp, BookOpen, Target, Clock
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link } from '@/lib/navigation';
 
 interface PremiumStudentDashboardProps {
     user: any;

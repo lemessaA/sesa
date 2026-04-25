@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+﻿import React, { useState, useEffect } from 'react';
+import { useNavigate } from '@/lib/navigation';
 import { BookOpen, Lock, CheckCircle, Clock, ChevronRight } from 'lucide-react';
 
 interface Enrollment {

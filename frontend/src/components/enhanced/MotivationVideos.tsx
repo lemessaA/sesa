@@ -1,4 +1,4 @@
-// Enhanced Motivation Videos Component with YouTube Integration
+﻿// Enhanced Motivation Videos Component with YouTube Integration
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -520,7 +520,7 @@ const MotivationVideos: React.FC = () => {
                                         </div>
                                         {video.isWatched && (
                                             <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded">
-                                                ✓ Watched
+                                                âœ“ Watched
                                             </div>
                                         )}
                                     </div>

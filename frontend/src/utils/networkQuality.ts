@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Network Quality Monitor - Tracks connection quality and adapts video quality
  */
 

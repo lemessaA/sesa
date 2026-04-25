@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GraduationCap, Menu, X, Sun, Moon, LogOut, LogIn, Search, User } from 'lucide-react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from '@/lib/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import NotificationBell from './NotificationBell';
@@ -9,10 +9,14 @@ import apiService from '../utils/api';
 
 const Navbar: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const [isDarkMode, setIsDarkMode] = useState(() => {
+    const [isDarkMode, setIsDarkMode] = useState(false);
+
+    // Theme initialization
+    React.useEffect(() => {
         const saved = localStorage.getItem('theme');
-        return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    });
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        setIsDarkMode(saved === 'dark' || (!saved && prefersDark));
+    }, []);
     const [searchQuery, setSearchQuery] = useState('');
     const [suggestions, setSuggestions] = useState<{ courses: any[]; teachers: any[] } | null>(null);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -170,8 +174,8 @@ const Navbar: React.FC = () => {
                                                         <div className="text-sm font-semibold text-dark-bg dark:text-light truncate group-hover:text-primary">{course.title}</div>
                                                         <div className="text-[10px] text-gray-500 flex items-center gap-2">
                                                             <span className="px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 font-bold">{course.gradeLevel || 'General'}</span>
-                                                            {course.category?.name && <span>• {course.category.name}</span>}
-                                                            <span>• {course.level || 'Beginner'}</span>
+                                                            {course.category?.name && <span>â€¢ {course.category.name}</span>}
+                                                            <span>â€¢ {course.level || 'Beginner'}</span>
                                                         </div>
                                                     </div>
                                                 </Link>

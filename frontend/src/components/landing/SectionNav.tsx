@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Zap, BookOpen, GraduationCap, Play, ImageIcon } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';

@@ -1,7 +1,7 @@
-// Enhanced Landing Hero Component with Modern Design
+﻿// Enhanced Landing Hero Component with Modern Design
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/lib/navigation';
 import { 
     Play, 
     ArrowRight, 

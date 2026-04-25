@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FiTrendingUp, FiAward, FiZap } from 'react-icons/fi';
 

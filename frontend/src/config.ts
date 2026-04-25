@@ -1,9 +1,9 @@
-// Application Configuration
+﻿// Application Configuration
 export const config = {
   // API Configuration
   api: {
     baseURL: (() => {
-      const raw = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
+      const raw = (process.env.NEXT_PUBLIC_API_URL || '').trim().replace(/\/+$/, '');
       if (!raw) return 'http://localhost:5000/api';
       return raw.endsWith('/api') ? raw : `${raw}/api`;
     })(),
@@ -13,9 +13,9 @@ export const config = {
 
   // Application Settings
   app: {
-    name: import.meta.env.VITE_APP_NAME || 'SafeEdu Educational Platform',
-    description: import.meta.env.VITE_APP_DESCRIPTION || 'Full-stack educational platform with course management',
-    version: import.meta.env.VITE_APP_VERSION || '1.0.0',
+    name: process.env.NEXT_PUBLIC_APP_NAME || 'SafeEdu Educational Platform',
+    description: process.env.NEXT_PUBLIC_APP_DESCRIPTION || 'Full-stack educational platform with course management',
+    version: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
     supportEmail: 'support@safeedu.education',
   },
 
@@ -95,15 +95,15 @@ export const config = {
   },
 
   // Environment Detection
-  isDevelopment: import.meta.env.DEV,
-  isProduction: import.meta.env.PROD,
-  isTest: import.meta.env.MODE === 'test',
+  isDevelopment: (process.env.NODE_ENV === 'development'),
+  isProduction: (process.env.NODE_ENV === 'production'),
+  isTest: (process.env.NODE_ENV === 'test'),
 
   // Debug Configuration
   debug: {
-    enable: import.meta.env.DEV,
-    logLevel: import.meta.env.DEV ? 'debug' : 'error',
-    enableReduxDevTools: import.meta.env.DEV,
+    enable: (process.env.NODE_ENV === 'development'),
+    logLevel: (process.env.NODE_ENV === 'development') ? 'debug' : 'error',
+    enableReduxDevTools: (process.env.NODE_ENV === 'development'),
   },
 };
 

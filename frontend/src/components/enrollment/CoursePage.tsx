@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+﻿import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from '@/lib/navigation';
 import { useAuth } from '../../context/AuthContext';
 import { Lock, Play, ChevronRight, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -68,7 +68,7 @@ const CoursePage: React.FC = () => {
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/enrollments/courses/${courseId}/with-access`,
+        `${process.env.NEXT_PUBLIC_API_URL}/enrollments/courses/${courseId}/with-access`,
         { headers }
       );
 

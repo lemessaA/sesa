@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { CheckCircle, BookOpen, Lock } from 'lucide-react';
 
 interface EnrollmentBadgeProps {
@@ -11,7 +11,7 @@ const EnrollmentBadge: React.FC<EnrollmentBadgeProps> = ({ accessLevel }) => {
       <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-success to-success/70 text-white rounded-full font-bold shadow-lg">
         <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
         <CheckCircle className="w-4 h-4" />
-        ✓ Enrolled
+        âœ“ Enrolled
       </div>
     );
   }

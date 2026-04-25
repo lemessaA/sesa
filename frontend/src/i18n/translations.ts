@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Central translations: English (en) and Amharic (am).
  * Corrected Amharic for consistency and clarity.
  */

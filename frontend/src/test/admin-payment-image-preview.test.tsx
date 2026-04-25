@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Bug Condition Exploration Test for Admin Payment Image Preview
  * 
  * **Validates: Requirements 2.1, 2.2, 2.4**
@@ -12,7 +12,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { BrowserRouter } from 'react-router-dom'
+import { BrowserRouter } from '@/lib/navigation'
 import * as fc from 'fast-check'
 import Approvals from '../pages/admin/Approvals'
 import { AuthProvider } from '../context/AuthContext'

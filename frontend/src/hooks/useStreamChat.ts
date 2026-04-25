@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { toast } from 'react-toastify';
 
@@ -11,7 +11,7 @@ export interface ChatMessage {
     role: string;
 }
 
-const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
 export const useStreamChat = (sessionId: string) => {
     const [socket, setSocket] = useState<Socket | null>(null);

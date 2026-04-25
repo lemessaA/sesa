@@ -1,5 +1,5 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
+﻿import React from 'react';
+import { Navigate } from '@/lib/navigation';
 import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types';
 import AppLayout from './AppLayout';

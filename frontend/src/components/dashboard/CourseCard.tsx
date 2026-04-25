@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Activity, BookOpen, CheckCircle2, Clock3, PlayCircle, Sparkles, Trophy, Unlock } from 'lucide-react';
 import { SafeImage } from '../ui/SafeImage';

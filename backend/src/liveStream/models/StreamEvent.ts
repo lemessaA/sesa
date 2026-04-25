@@ -47,7 +47,7 @@ const StreamEventSchema: Schema = new Schema({
         required: true,
     },
     metadata: { type: Schema.Types.Mixed },
-    timestamp: { type: Date, default: Date.now, index: true },
+    timestamp: { type: Date, default: Date.now },
 });
 
 // TTL index: auto-delete events older than 90 days

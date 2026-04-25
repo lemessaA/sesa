@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, MessageCircle, Send, X } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from '@/lib/navigation';
 
 type ConciergeKey = 'about' | 'start' | 'studentFlow' | 'instructorFlow';
 

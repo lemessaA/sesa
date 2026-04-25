@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import apiService from '../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, ChevronDown, Megaphone } from 'lucide-react';
@@ -51,7 +51,7 @@ const AnnouncementBanner: React.FC<AnnouncementBannerProps> = ({
                     setAnnouncements(Array.isArray(response.data) ? response.data : []);
                 }
             } catch (error) {
-                // Silently fail — banner is non-critical
+                // Silently fail â€” banner is non-critical
                 if (isMounted) {
                     setAnnouncements([]);
                 }
@@ -77,7 +77,7 @@ const AnnouncementBanner: React.FC<AnnouncementBannerProps> = ({
 
     const marqueeText = useMemo(() => {
         if (visibleAnnouncements.length === 0) return '';
-        return visibleAnnouncements.map((item) => item.message).join('   •   ');
+        return visibleAnnouncements.map((item) => item.message).join('   â€¢   ');
     }, [visibleAnnouncements]);
 
     if (!isAuthenticated || visibleAnnouncements.length === 0) {
@@ -223,7 +223,7 @@ const AnnouncementBanner: React.FC<AnnouncementBannerProps> = ({
                         animate={{ x: ['0%', '-100%'] }}
                         transition={{ duration: 26, repeat: Infinity, ease: 'linear' }}
                     >
-                        {marqueeText}   •   {marqueeText}
+                        {marqueeText}   â€¢   {marqueeText}
                     </motion.div>
                 </div>
             </div>

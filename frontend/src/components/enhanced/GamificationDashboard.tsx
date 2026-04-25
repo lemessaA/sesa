@@ -1,4 +1,4 @@
-// Gamification Dashboard with Advanced Features
+﻿// Gamification Dashboard with Advanced Features
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 

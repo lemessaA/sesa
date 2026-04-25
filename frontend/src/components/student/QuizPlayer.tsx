@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, ChevronRight, ChevronLeft, Send, Sparkles } from 'lucide-react';
 
@@ -84,7 +84,7 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ quiz, onComplete, onClose }) =>
                         <div key={i} className={`p-4 rounded-xl border ${answers[i] === q.correctAnswer ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-rose-500/30 bg-rose-500/5'}`}>
                             <p className="text-sm font-medium text-white mb-1">{i + 1}. {q.text}</p>
                             <p className="text-xs text-slate-400">
-                                {answers[i] === q.correctAnswer ? '✅ Correct' : `❌ Incorrect (Correct: ${q.options[q.correctAnswer]})`}
+                                {answers[i] === q.correctAnswer ? 'âœ… Correct' : `âŒ Incorrect (Correct: ${q.options[q.correctAnswer]})`}
                             </p>
                             {q.explanation && <p className="mt-2 text-xs text-blue-300 italic">Info: {q.explanation}</p>}
                         </div>

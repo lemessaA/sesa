@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Extract YouTube video ID from a URL or bare 11-character ID.
  * Mirrors backend/src/utils/youtubeParser.ts behavior.
  */

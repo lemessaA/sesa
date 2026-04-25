@@ -32,7 +32,8 @@ export const createRedisClient = (): Redis => {
     client.on('error', (err: any) => {
         // Only log connection errors as warnings, avoid crashing
         if (err.message.includes('ECONNREFUSED')) {
-            logger.warn(`[Redis] Connection refused at ${err.address || '127.0.0.1'}:${err.port || 6379}`);
+            const error = err as any;
+            logger.warn(`[Redis] Connection refused at ${error.address || '127.0.0.1'}:${error.port || 6379}`);
         } else {
             logger.warn(`[Redis] Error: ${err.message}`);
         }
@@ -43,7 +44,12 @@ export const createRedisClient = (): Redis => {
 };
 
 export const getRedisClient = (): Redis | null => {
-    if (!redisClient) {
+    const url = getRedisUrl();
+    
+    // If no URL provided, we are in "No Redis" mode (dev-only single server)
+    if (!url) return null;
+
+    if (!redisClient || redisClient.status === 'end') {
         try {
             redisClient = createRedisClient();
             redisClient.connect().catch((err) =>
@@ -54,11 +60,19 @@ export const getRedisClient = (): Redis | null => {
             return null;
         }
     }
+    
+    // If the client exists but the connection is permanently ended, return null 
+    // so helpers skip the calls instead of throwing "Connection is closed"
+    if (redisClient.status === 'end') return null;
+    
     return redisClient;
 };
 
 export const getRedisSubscriber = (): Redis | null => {
-    if (!redisSubscriber) {
+    const url = getRedisUrl();
+    if (!url) return null;
+
+    if (!redisSubscriber || redisSubscriber.status === 'end') {
         try {
             redisSubscriber = createRedisClient();
             redisSubscriber.connect().catch((err) =>
@@ -69,6 +83,9 @@ export const getRedisSubscriber = (): Redis | null => {
             return null;
         }
     }
+
+    if (redisSubscriber.status === 'end') return null;
+
     return redisSubscriber;
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Send, Bot, User, BookOpen, Brain, Lightbulb, Target } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import apiService from '../utils/api';
@@ -200,13 +200,13 @@ const AITutor: React.FC<AITutorProps> = ({ courseId, courseTitle, onClose }) => 
                             onClick={() => setShowSettings(!showSettings)}
                             className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                         >
-                            ⚙️
+                            âš™ï¸
                         </button>
                         <button
                             onClick={onClose}
                             className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                         >
-                            ✕
+                            âœ•
                         </button>
                     </div>
                 </div>

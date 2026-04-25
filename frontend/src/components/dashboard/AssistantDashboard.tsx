@@ -1,10 +1,10 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion } from 'framer-motion';
 import { 
     BookOpen, Users, Plus, 
     TrendingUp, Clock, HelpCircle 
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link } from '@/lib/navigation';
 
 interface AssistantDashboardProps {
     data: any;

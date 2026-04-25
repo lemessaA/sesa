@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+﻿import React, { useState, useEffect } from 'react';
+import { Link } from '@/lib/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, Flame, Zap, TrendingUp, MessageSquare, ClipboardCheck, Award, Video, ArrowRight } from 'lucide-react';
 import DashboardLayout from './DashboardLayout';
@@ -38,7 +38,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
             try {
                 setLoadingEnrollments(true);
                 const response = await fetch(
-                    `${import.meta.env.VITE_API_URL}/smart-enrollment/my-enrollments`,
+                    `${process.env.NEXT_PUBLIC_API_URL}/smart-enrollment/my-enrollments`,
                     {
                         headers: { Authorization: `Bearer ${token}` }
                     }
@@ -62,7 +62,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
             try {
                 setLoadingSessions(true);
                 const response = await fetch(
-                    `${import.meta.env.VITE_API_URL}/live-stream/sessions?status=live`,
+                    `${process.env.NEXT_PUBLIC_API_URL}/live-stream/sessions?status=live`,
                     {
                         headers: { Authorization: `Bearer ${token}` }
                     }
@@ -102,7 +102,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
     const level = Math.max(1, Math.ceil(xp / 500));
     const streakDays = Math.max(1, approvedCourses.length);
 
-    /* ── Mini animated circular progress ring ── */
+    /* â”€â”€ Mini animated circular progress ring â”€â”€ */
     const ProgressRing: React.FC<{ percent: number; size?: number; stroke?: number; color?: string }> = ({
         percent, size = 52, stroke = 5, color = '#06b6d4',
     }) => {
@@ -194,7 +194,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
                                             {session.liveParticipantCount || 0} watching
                                         </div>
                                         <div className="text-[10px] font-black text-blue-400 uppercase italic tracking-tighter group-hover:translate-x-1 transition-transform">
-                                            Join Now →
+                                            Join Now â†’
                                         </div>
                                     </div>
                                 </div>
@@ -345,7 +345,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
                                         </td>
                                         <td className="px-6 py-6 border-b border-slate-700/20">
                                             <span className="text-sm font-black text-white">
-                                                {gradebookData[course.id]?.find(m => m.assessmentType === 'quiz')?.score ?? '—'}%
+                                                {gradebookData[course.id]?.find(m => m.assessmentType === 'quiz')?.score ?? 'â€”'}%
                                             </span>
                                         </td>
                                         <td className="px-6 py-6 border-b border-slate-700/20">

@@ -24,6 +24,19 @@ interface JwtPayload {
     user: { id: string; role: string; name?: string; email?: string };
 }
 
+interface PeerInfo {
+    peerId: string;
+    peerName: string;
+    peerRole: string;
+}
+
+// ── In-memory room participant tracking for WebRTC P2P signaling ──
+const roomPeers = new Map<string, Map<string, PeerInfo>>();
+// Track who is screen sharing per room
+const roomScreenSharer = new Map<string, string>();
+
+const MODERATOR_ROLES = ['instructor', 'admin', 'super_admin', 'assistant_instructor'];
+
 export const initLiveStreamSocket = (io: SocketIOServer): void => {
     const live: Namespace = io.of('/live');
 
@@ -52,6 +65,21 @@ export const initLiveStreamSocket = (io: SocketIOServer): void => {
                 if (!session || session.status !== 'live') { socket.emit('live:error', { message: 'Session not available' }); return; }
                 socket.roomId = session.roomId;
                 socket.sessionDbId = sessionId;
+
+                // Build peer list BEFORE adding this user
+                const existingPeers = roomPeers.get(session.roomId);
+                const peers: PeerInfo[] = existingPeers
+                    ? Array.from(existingPeers.values()).filter(p => p.peerId !== socket.userId)
+                    : [];
+
+                // Add this user to the room peer map
+                if (!roomPeers.has(session.roomId)) roomPeers.set(session.roomId, new Map());
+                roomPeers.get(session.roomId)!.set(socket.userId!, {
+                    peerId: socket.userId!,
+                    peerName: socket.userName!,
+                    peerRole: socket.userRole!,
+                });
+
                 await socket.join(`live:${session.roomId}`);
                 await socket.join(`user:${socket.userId}`);
                 const count = await redisIncr(PARTICIPANT_KEY(session.roomId), 86400);
@@ -63,7 +91,25 @@ export const initLiveStreamSocket = (io: SocketIOServer): void => {
                     await LiveSession.findByIdAndUpdate(sessionId, { participantCount: count });
                 }
 
-                live.to(`live:${session.roomId}`).emit('live:participant_joined', { userId: socket.userId, userName: socket.userName, role: socket.userRole, count });
+                // Send peer list to new joiner (for WebRTC P2P connections)
+                socket.emit('live:peers_list', { peers });
+
+                // If someone is screen sharing, notify the new joiner
+                const screenSharer = roomScreenSharer.get(session.roomId);
+                if (screenSharer) {
+                    const sharerInfo = roomPeers.get(session.roomId)?.get(screenSharer);
+                    socket.emit('live:screen_share_started', {
+                        userId: screenSharer,
+                        userName: sharerInfo?.peerName || 'Unknown',
+                    });
+                }
+
+                // Broadcast to existing peers that a new peer joined
+                live.to(`live:${session.roomId}`).emit('live:participant_joined', {
+                    userId: socket.userId, userName: socket.userName, role: socket.userRole, count,
+                    // Include peer info for WebRTC
+                    peerId: socket.userId, peerName: socket.userName, peerRole: socket.userRole,
+                });
 
                 const chatHistory = await redisGet(CHAT_KEY(session.roomId));
                 if (chatHistory) socket.emit('live:chat_history', JSON.parse(chatHistory));
@@ -100,8 +146,7 @@ export const initLiveStreamSocket = (io: SocketIOServer): void => {
         socket.on('live:delete_message', async ({ messageId }: { messageId: string }) => {
             try {
                 if (!socket.roomId) return;
-                const MUTABLE_ROLES = ['instructor', 'admin', 'super_admin', 'assistant_instructor'];
-                if (!MUTABLE_ROLES.includes(socket.userRole || '')) { socket.emit('live:error', { message: 'Only the host can delete messages' }); return; }
+                if (!MODERATOR_ROLES.includes(socket.userRole || '')) { socket.emit('live:error', { message: 'Only the host can delete messages' }); return; }
                 const chatHistory = await redisGet(CHAT_KEY(socket.roomId));
                 if (chatHistory) {
                     const msgs = JSON.parse(chatHistory).filter((m: any) => m.id !== messageId);
@@ -136,28 +181,98 @@ export const initLiveStreamSocket = (io: SocketIOServer): void => {
             } catch (err: any) { logger.error(`[LiveSocket] lower_hand error: ${err.message}`); }
         });
 
-        // ── HOST MUTE PARTICIPANT ──
+        // ── HOST MUTE/UNMUTE PARTICIPANT ──
         socket.on('live:mute_user', async ({ targetUserId, muted }: { targetUserId: string; muted: boolean }) => {
             try {
                 if (!socket.roomId) return;
-                const MUTABLE_ROLES = ['instructor', 'admin', 'super_admin', 'assistant_instructor'];
-                if (!MUTABLE_ROLES.includes(socket.userRole || '')) { socket.emit('live:error', { message: 'Only the host can mute participants' }); return; }
-                live.to(`user:${targetUserId}`).emit('live:muted', { muted, by: socket.userId });
+                if (!MODERATOR_ROLES.includes(socket.userRole || '')) { socket.emit('live:error', { message: 'Only the host can mute participants' }); return; }
+                live.to(`user:${targetUserId}`).emit('live:muted', { muted, by: socket.userId, byName: socket.userName });
                 live.to(`live:${socket.roomId}`).emit('live:participant_muted', { targetUserId, muted, by: socket.userId });
+                logger.info(`[LiveSocket] ${socket.userName} ${muted ? 'muted' : 'unmuted'} user ${targetUserId}`);
             } catch (err: any) { logger.error(`[LiveSocket] mute_user error: ${err.message}`); }
         });
 
-        // ── WebRTC SIGNALING (P2P fallback) ──
-        socket.on('live:webrtc_offer', ({ to, offer }: any) => { live.to(`user:${to}`).emit('live:webrtc_offer', { from: socket.userId, offer }); });
-        socket.on('live:webrtc_answer', ({ to, answer }: any) => { live.to(`user:${to}`).emit('live:webrtc_answer', { from: socket.userId, answer }); });
-        socket.on('live:webrtc_ice_candidate', ({ to, candidate }: any) => { live.to(`user:${to}`).emit('live:webrtc_ice_candidate', { from: socket.userId, candidate }); });
+        // ── SCREEN SHARE START ──
+        socket.on('live:screen_share_start', () => {
+            if (!socket.roomId) return;
+            roomScreenSharer.set(socket.roomId, socket.userId!);
+            live.to(`live:${socket.roomId}`).emit('live:screen_share_started', {
+                userId: socket.userId,
+                userName: socket.userName,
+            });
+            logger.info(`[LiveSocket] ${socket.userName} started screen sharing in room ${socket.roomId}`);
+        });
+
+        // ── SCREEN SHARE STOP ──
+        socket.on('live:screen_share_stop', () => {
+            if (!socket.roomId) return;
+            if (roomScreenSharer.get(socket.roomId) === socket.userId) {
+                roomScreenSharer.delete(socket.roomId);
+            }
+            live.to(`live:${socket.roomId}`).emit('live:screen_share_stopped', {
+                userId: socket.userId,
+            });
+            logger.info(`[LiveSocket] ${socket.userName} stopped screen sharing in room ${socket.roomId}`);
+        });
+
+        // ── FORCE STOP SCREEN SHARE (moderator) ──
+        socket.on('live:force_stop_screen_share', ({ targetUserId }: { targetUserId: string }) => {
+            if (!socket.roomId) return;
+            if (!MODERATOR_ROLES.includes(socket.userRole || '')) return;
+            live.to(`user:${targetUserId}`).emit('live:force_stop_screen_share');
+            if (roomScreenSharer.get(socket.roomId) === targetUserId) {
+                roomScreenSharer.delete(socket.roomId);
+            }
+            live.to(`live:${socket.roomId}`).emit('live:screen_share_stopped', { userId: targetUserId });
+        });
+
+        // ── KICK USER VIA SOCKET (moderator) ──
+        socket.on('live:kick_user', async ({ targetUserId }: { targetUserId: string }) => {
+            try {
+                if (!socket.roomId) return;
+                if (!MODERATOR_ROLES.includes(socket.userRole || '')) { socket.emit('live:error', { message: 'Insufficient permissions' }); return; }
+                live.to(`user:${targetUserId}`).emit('live:kicked', { message: 'You have been removed from this session' });
+                // Remove from peer map
+                roomPeers.get(socket.roomId)?.delete(targetUserId);
+                // Force disconnect the target's sockets in this room
+                const sockets = await live.in(`user:${targetUserId}`).fetchSockets();
+                for (const s of sockets) {
+                    if ((s as any).roomId === socket.roomId) s.disconnect(true);
+                }
+                logger.info(`[LiveSocket] ${socket.userName} kicked user ${targetUserId}`);
+            } catch (err: any) { logger.error(`[LiveSocket] kick_user error: ${err.message}`); }
+        });
+
+        // ── WebRTC SIGNALING (P2P) ──
+        socket.on('live:webrtc_offer', ({ to, offer }: any) => {
+            live.to(`user:${to}`).emit('live:webrtc_offer', { from: socket.userId, offer });
+        });
+        socket.on('live:webrtc_answer', ({ to, answer }: any) => {
+            live.to(`user:${to}`).emit('live:webrtc_answer', { from: socket.userId, answer });
+        });
+        socket.on('live:webrtc_ice_candidate', ({ to, candidate }: any) => {
+            live.to(`user:${to}`).emit('live:webrtc_ice_candidate', { from: socket.userId, candidate });
+        });
 
         // ── DISCONNECT ──
         socket.on('disconnect', async () => {
             try {
                 if (!socket.roomId) return;
+                // Remove from peer map
+                roomPeers.get(socket.roomId)?.delete(socket.userId!);
+                if (roomPeers.get(socket.roomId)?.size === 0) roomPeers.delete(socket.roomId);
+
+                // Clear screen share if this user was sharing
+                if (roomScreenSharer.get(socket.roomId) === socket.userId) {
+                    roomScreenSharer.delete(socket.roomId);
+                    live.to(`live:${socket.roomId}`).emit('live:screen_share_stopped', { userId: socket.userId });
+                }
+
                 const count = await redisDecr(PARTICIPANT_KEY(socket.roomId));
-                live.to(`live:${socket.roomId}`).emit('live:participant_left', { userId: socket.userId, userName: socket.userName, count: Math.max(0, count) });
+                live.to(`live:${socket.roomId}`).emit('live:participant_left', {
+                    userId: socket.userId, userName: socket.userName, count: Math.max(0, count),
+                    peerId: socket.userId,
+                });
                 if (socket.sessionDbId && socket.userId) {
                     await Attendance.findOneAndUpdate({ sessionId: socket.sessionDbId, userId: socket.userId }, { leftAt: new Date() }).catch(() => {});
                     await StreamEvent.create({ sessionId: new mongoose.Types.ObjectId(socket.sessionDbId), userId: new mongoose.Types.ObjectId(socket.userId), eventType: 'leave', timestamp: new Date() }).catch(() => {});
@@ -166,5 +281,5 @@ export const initLiveStreamSocket = (io: SocketIOServer): void => {
         });
     });
 
-    logger.info('[LiveSocket] /live namespace initialized (V2)');
+    logger.info('[LiveSocket] /live namespace initialized (V2 — P2P + Screen Share)');
 };

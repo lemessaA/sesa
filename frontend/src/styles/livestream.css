@@ -1010,3 +1010,368 @@
 .live-ctrl-btn.muted:hover {
     background: rgba(239, 68, 68, 0.2);
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   VIDEO GRID — P2P WebRTC Layout
+   ══════════════════════════════════════════════════════════════════════ */
+
+.vg-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+    background: #000;
+    border-radius: var(--live-radius-lg);
+    overflow: hidden;
+}
+
+/* Grid-only mode (no screen share) */
+.vg-grid-only {
+    flex-direction: column;
+}
+
+.vg-grid-only .vg-tiles {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 8px;
+}
+
+/* Screen share mode */
+.vg-with-screen {
+    flex-direction: row;
+}
+
+.vg-main-area {
+    flex: 3;
+    min-width: 0;
+}
+
+.vg-tiles-sidebar {
+    flex: 1;
+    min-width: 200px;
+    max-width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--live-surface-hover) transparent;
+}
+
+.vg-tiles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 8px;
+}
+
+/* Individual tile */
+.vg-tile {
+    position: relative;
+    border-radius: 14px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: border-color 0.2s;
+    min-height: 140px;
+}
+
+.vg-tile:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.vg-tile-main {
+    height: 100%;
+    min-height: 300px;
+}
+
+.vg-tile-small {
+    aspect-ratio: 16/9;
+}
+
+.vg-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    background: #000;
+}
+
+.vg-tile-main .vg-video {
+    object-fit: contain;
+}
+
+/* Avatar (camera off) */
+.vg-avatar-wrapper {
+    width: 100%;
+    height: 100%;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+.vg-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, var(--live-primary), var(--live-accent));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 900;
+    color: #fff;
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+}
+
+.vg-cam-off-label {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 600;
+}
+
+/* Tile label overlay */
+.vg-tile-label {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 8px 12px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.vg-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.vg-role-badge {
+    font-size: 9px;
+    font-weight: 800;
+    background: rgba(99, 102, 241, 0.3);
+    color: #a5b4fc;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.08em;
+}
+
+.vg-screen-badge {
+    font-size: 9px;
+    font-weight: 800;
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.08em;
+    animation: livePulse 2s ease-in-out infinite;
+}
+
+.vg-screen-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   PARTICIPANTS SIDEBAR — Moderation Actions
+   ══════════════════════════════════════════════════════════════════════ */
+
+.ps-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+
+.ps-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.ps-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ps-badges {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 2px;
+}
+
+.ps-role {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.ps-muted-badge {
+    font-size: 9px;
+    font-weight: 700;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+
+.ps-sharing-badge {
+    font-size: 9px;
+    font-weight: 700;
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+
+.ps-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.ps-action-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.ps-action-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.1);
+}
+
+.ps-action-btn.ps-mute:hover {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.3);
+    color: #f59e0b;
+}
+
+.ps-action-btn.ps-unmute:hover {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.3);
+    color: #10b981;
+}
+
+.ps-action-btn.ps-kick:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+.ps-action-btn.ps-stop-share:hover {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.3);
+    color: #f59e0b;
+}
+
+.participant-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   SCREEN SHARE BUTTON — Enhanced
+   ══════════════════════════════════════════════════════════════════════ */
+
+.screen-share-btn {
+    position: relative;
+    min-width: 60px;
+    width: auto !important;
+    padding: 0 14px !important;
+    gap: 6px;
+}
+
+.screen-share-btn.sharing {
+    background: rgba(16, 185, 129, 0.15) !important;
+    border-color: rgba(16, 185, 129, 0.4) !important;
+    color: #10b981 !important;
+    animation: shareGlow 2s ease-in-out infinite;
+}
+
+@keyframes shareGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    50% { box-shadow: 0 0 12px 2px rgba(16, 185, 129, 0.2); }
+}
+
+.ctrl-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   RESPONSIVE — VideoGrid
+   ══════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+    .vg-with-screen {
+        flex-direction: column;
+    }
+
+    .vg-tiles-sidebar {
+        max-width: 100%;
+        flex-direction: row;
+        max-height: 120px;
+        overflow-x: auto;
+    }
+
+    .vg-tiles-sidebar .vg-tile {
+        min-width: 140px;
+        aspect-ratio: 16/9;
+    }
+
+    .vg-grid-only .vg-tiles {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+
+    .screen-share-btn {
+        min-width: 48px;
+    }
+
+    .ctrl-label {
+        display: none;
+    }
+
+    .ps-actions {
+        display: none;
+    }
+}

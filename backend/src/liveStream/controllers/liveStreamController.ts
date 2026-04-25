@@ -75,7 +75,7 @@ export const listSessions = async (req: StreamAuthRequest, res: Response): Promi
                 const enrolledCourses = await mongoose.model('Course').find({
                     $or: [{ enrolledStudents: userId }, { 'students.studentId': userId, 'students.status': 'approved' }]
                 }).select('_id');
-                filter.courseId = { $in: enrolledCourses.map(c => c._id) };
+                filter.courseId = { $in: enrolledCourses.map((c: any) => c._id) };
             }
             filter.status = { $in: ['scheduled', 'live', 'ended'] };
         }

@@ -1,4 +1,4 @@
-// AI-Powered Quote Generator with Advanced Features
+﻿// AI-Powered Quote Generator with Advanced Features
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RefreshCw, Sparkles, Heart, Share2, Copy, Check, Volume2, VolumeX } from 'lucide-react';

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, AuthState } from '../types';
 
 interface AuthContextType {
@@ -43,7 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     // Listen for 401 events from the API interceptor (session expired / revoked)
-    // This avoids a hard page reload — state clears and React Router handles redirect.
+    // This avoids a hard page reload â€” state clears and React Router handles redirect.
     useEffect(() => {
         const handleUnauthorized = () => {
             localStorage.removeItem('token');

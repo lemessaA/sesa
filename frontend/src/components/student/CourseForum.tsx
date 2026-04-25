@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Send, User, Trash2, Pin, Lock, Flag, Reply } from 'lucide-react';
 import { showSuccess, showError } from '../../utils/toast';

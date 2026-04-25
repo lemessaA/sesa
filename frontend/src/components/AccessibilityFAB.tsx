@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Accessibility, X, Type, Eye, MousePointer, Volume2 } from 'lucide-react';
 

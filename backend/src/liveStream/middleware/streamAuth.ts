@@ -63,7 +63,7 @@ export const requireCourseEnrollment = async (req: StreamAuthRequest, res: Respo
 
         // 2. Fallback: Check Course model if not found in User (sometimes out of sync)
         if (!isEnrolled) {
-            const course = await mongoose.model('Course').findById(courseIdStr).select('enrolledStudents').lean();
+            const course = await mongoose.model('Course').findById(courseIdStr).select('enrolledStudents').lean() as any;
             if (course && course.enrolledStudents) {
                 isEnrolled = course.enrolledStudents.some((id: mongoose.Types.ObjectId) => id.toString() === req.user!.id);
             }

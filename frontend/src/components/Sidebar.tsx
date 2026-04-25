@@ -1,6 +1,6 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion } from 'framer-motion';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from '@/lib/navigation';
 import { useAuth } from '../context/AuthContext';
 import { 
     LayoutDashboard, 

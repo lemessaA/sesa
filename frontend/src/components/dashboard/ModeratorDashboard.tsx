@@ -1,10 +1,10 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion } from 'framer-motion';
 import { 
     Users, BookOpen, MessageSquare, CheckCircle, XCircle, 
     Eye, Shield, AlertCircle 
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link } from '@/lib/navigation';
 
 interface ModeratorDashboardProps {
     data: any;

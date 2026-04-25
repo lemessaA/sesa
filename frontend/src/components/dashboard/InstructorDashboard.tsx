@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion } from 'framer-motion';
 import { 
     BookOpen, 
@@ -10,7 +10,7 @@ import {
     ArrowRight,
     Video
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link } from '@/lib/navigation';
 import AnnouncementBanner from '../AnnouncementBanner';
 
 interface InstructorDashboardProps {

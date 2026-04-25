@@ -3,10 +3,10 @@ import axios, { type InternalAxiosRequestConfig } from 'axios';
 // API Configuration
 // Ensure the base URL always has the /api prefix for consistency
 export const getApiBaseUrl = () => {
-  const envUrl = import.meta.env.VITE_API_URL || '';
+  const envUrl = process.env.NEXT_PUBLIC_API_URL || '';
   
   // In development, if no env var, default to localhost:5000
-  if (!envUrl && import.meta.env.DEV) {
+  if (!envUrl && (process.env.NODE_ENV === 'development')) {
     return 'http://localhost:5000/api';
   }
 
@@ -77,9 +77,11 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },

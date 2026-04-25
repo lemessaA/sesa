@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { BookOpen, Lock } from 'lucide-react';
 
 interface Course {

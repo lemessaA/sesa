@@ -3,6 +3,7 @@
  */
 
 export const debugToken = () => {
+    if (typeof window === 'undefined') return { valid: false, reason: 'SERVER_SIDE' };
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
 

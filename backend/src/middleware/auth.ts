@@ -81,16 +81,13 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
         // The payload is { user: { id, role } }
         req.user = decoded.user;
         next();
-    } catch (err) {
-        if (err instanceof Error && err.name === 'TokenExpiredError') {
-            return res
-                .status(401)
-                .json({ message: 'Access token expired', code: 'TOKEN_EXPIRED' });
+    } catch (err: any) {
+        if (err.name === 'TokenExpiredError') {
+            logger.warn(`[Auth] Token expired: ${err.expiredAt}`);
+            return res.status(401).json({ message: 'Access token expired', code: 'TOKEN_EXPIRED' });
         }
-        logger.warn('JWT verification failed (non-expiry)');
-        return res
-            .status(401)
-            .json({ message: 'Token is not valid', code: 'INVALID_TOKEN' });
+        logger.error(`[Auth] JWT verification error: ${err.message}`);
+        return res.status(401).json({ message: 'Token is not valid', code: 'TOKEN_INVALID' });
     }
 };
 

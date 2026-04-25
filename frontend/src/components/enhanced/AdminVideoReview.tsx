@@ -1,4 +1,4 @@
-// Enhanced Admin Video Review Component with Full Preview
+﻿// Enhanced Admin Video Review Component with Full Preview
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -280,9 +280,9 @@ const AdminVideoReview: React.FC = () => {
                                                 </p>
                                                 <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-500">
                                                     <span>{formatTime(video.duration)}</span>
-                                                    <span>•</span>
+                                                    <span>â€¢</span>
                                                     <span>{formatFileSize(video.fileSize)}</span>
-                                                    <span>•</span>
+                                                    <span>â€¢</span>
                                                     <span>{video.resolution}</span>
                                                 </div>
                                                 <div className="mt-2">
@@ -395,7 +395,7 @@ const AdminVideoReview: React.FC = () => {
                                         
                                         <div className="text-right">
                                             <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                                                {selectedVideo.format} • {selectedVideo.resolution}
+                                                {selectedVideo.format} â€¢ {selectedVideo.resolution}
                                             </div>
                                             <div className="text-sm text-gray-500 dark:text-gray-400">
                                                 {formatFileSize(selectedVideo.fileSize)}

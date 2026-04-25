@@ -1,4 +1,4 @@
-// Enhanced Screenshot Review Component with Accept/Reject and Reason
+﻿// Enhanced Screenshot Review Component with Accept/Reject and Reason
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -272,9 +272,9 @@ const ScreenshotReview: React.FC = () => {
                                                 </p>
                                                 <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-500">
                                                     <span>{formatFileSize(screenshot.fileSize)}</span>
-                                                    <span>•</span>
-                                                    <span>{screenshot.dimensions.width}×{screenshot.dimensions.height}</span>
-                                                    <span>•</span>
+                                                    <span>â€¢</span>
+                                                    <span>{screenshot.dimensions.width}Ã—{screenshot.dimensions.height}</span>
+                                                    <span>â€¢</span>
                                                     <span>{formatTime(screenshot.uploadContext.timestamp)}</span>
                                                 </div>
                                                 <div className="mt-2">
@@ -409,7 +409,7 @@ const ScreenshotReview: React.FC = () => {
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-sm text-gray-600 dark:text-gray-400">Dimensions</span>
                                                     <span className="font-medium text-gray-800 dark:text-gray-100">
-                                                        {selectedScreenshot.dimensions.width}×{selectedScreenshot.dimensions.height}
+                                                        {selectedScreenshot.dimensions.width}Ã—{selectedScreenshot.dimensions.height}
                                                     </span>
                                                 </div>
                                                 <div className="flex items-center justify-between">

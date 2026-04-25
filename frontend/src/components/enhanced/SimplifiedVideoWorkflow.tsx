@@ -1,4 +1,4 @@
-// Simplified Video Workflow Component - Easy to Use
+﻿// Simplified Video Workflow Component - Easy to Use
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 

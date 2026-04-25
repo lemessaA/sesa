@@ -1,4 +1,4 @@
-/** Shared rotating hero images (login + landing) */
+﻿/** Shared rotating hero images (login + landing) */
 export const HERO_BACKGROUND_IMAGES = [
     '/sesa-tech-brand.png',
     '/hero-students.png',

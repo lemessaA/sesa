@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Lock, ChevronRight } from 'lucide-react';
 
 interface LockedLessonCardProps {
