@@ -1,11 +1,11 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from '@/lib/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, Flame, Zap, TrendingUp, MessageSquare, ClipboardCheck, Award, Video, ArrowRight } from 'lucide-react';
 import DashboardLayout from './DashboardLayout';
 import TeacherEvaluation from '../student/TeacherEvaluation';
 import EnrollmentCard from '../EnrollmentCard';
-import apiService from '../../utils/api';
+import apiService, { API_BASE_URL } from '../../utils/api';
 import GamificationStats from './GamificationStats';
 import AnnouncementBanner from '../AnnouncementBanner';
 
@@ -38,7 +38,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
             try {
                 setLoadingEnrollments(true);
                 const response = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL}/smart-enrollment/my-enrollments`,
+                    `${API_BASE_URL}/smart-enrollment/my-enrollments`,
                     {
                         headers: { Authorization: `Bearer ${token}` }
                     }
@@ -62,7 +62,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
             try {
                 setLoadingSessions(true);
                 const response = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL}/live-stream/sessions?status=live`,
+                    `${API_BASE_URL}/live-stream/sessions?status=live`,
                     {
                         headers: { Authorization: `Bearer ${token}` }
                     }

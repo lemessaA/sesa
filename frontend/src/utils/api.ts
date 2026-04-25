@@ -90,6 +90,21 @@ api.interceptors.request.use(
   }
 );
 
+// FormData: drop default `Content-Type: application/json` so the runtime sets `multipart/form-data` + boundary (multer needs this).
+api.interceptors.request.use((config) => {
+  if (config.data instanceof FormData && config.headers) {
+    const h = config.headers;
+    if (typeof (h as { delete?: (name: string) => void }).delete === 'function') {
+      (h as { delete: (name: string) => void }).delete('Content-Type');
+    } else {
+      const rec = h as unknown as Record<string, unknown>;
+      delete rec['Content-Type'];
+      delete rec['content-type'];
+    }
+  }
+  return config;
+});
+
 // Response interceptor: refresh access token (15m) via httpOnly cookie, then retry once
 api.interceptors.response.use(
   (response) => response,
