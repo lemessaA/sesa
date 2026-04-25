@@ -118,6 +118,10 @@ temp/
 *.bak
 *.old
 
+# User-generated uploads (proofs, RAG docs) — keep out of VCS; directory kept via .gitkeep
+backend/uploads/*
+!backend/uploads/.gitkeep
+
 # Runtime data
 pids/
 *.pid
