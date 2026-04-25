@@ -11,6 +11,8 @@ export type AgentInvokePayload = {
   /** When true, LangGraph runs BM25 over user-uploaded docs (RAG). */
   use_rag?: boolean;
   response_mode?: AgentResponseMode;
+  /** Indexed filenames from Mongo (must match the same user as user_id in the RAG store). */
+  user_document_names?: string[];
 };
 
 export type AgentInvokeResponse = {

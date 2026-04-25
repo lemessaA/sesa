@@ -11,6 +11,7 @@ interface ChatMessage {
 }
 
 const QUICK_ACTIONS = [
+    { label: '📄 My uploaded file', query: 'Summarize the main points from my uploaded document in 3–5 bullet points.' },
     { label: '📚 How to enroll?', query: 'How do I enroll in a course?' },
     { label: '💳 Payment options', query: 'What payment methods do you accept?' },
     { label: '📊 My dashboard', query: 'What can I see in my dashboard?' },
@@ -132,6 +133,13 @@ const AIHelper: React.FC = () => {
         }
     }, [isOpen, ragEligible, loadRagDocs]);
 
+    // When at least one file is indexed, default document mode on so questions can use those uploads.
+    useEffect(() => {
+        if (ragEligible && ragDocs.some((d) => d.status === 'indexed')) {
+            setUseRag(true);
+        }
+    }, [ragEligible, ragDocs]);
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
@@ -230,6 +238,7 @@ const AIHelper: React.FC = () => {
         setUploadBusy(true);
         try {
             await apiService.rag.uploadDocument(f);
+            setUseRag(true);
             await loadRagDocs();
         } catch (err) {
             console.error('[AIHelper] RAG upload failed', err);
@@ -327,6 +336,11 @@ const AIHelper: React.FC = () => {
                         )}
                         {ragEligible === true && (
                         <div className="px-3 py-2 bg-slate-100/90 dark:bg-slate-900/80 border-b border-slate-200/80 dark:border-slate-600 flex-shrink-0 text-[11px] space-y-2">
+                            {useRag && ragDocs.some((d) => d.status === 'indexed') && (
+                                <p className="text-[10px] text-cyan-700 dark:text-cyan-300/90">
+                                    The assistant can read your indexed files. Ask about content, or use “My uploaded file” in quick actions.
+                                </p>
+                            )}
                             <div className="flex flex-wrap items-center gap-2">
                                 <label className="flex items-center gap-1.5 cursor-pointer text-slate-700 dark:text-slate-200">
                                     <input
@@ -488,7 +502,11 @@ const AIHelper: React.FC = () => {
                                     value={inputValue}
                                     onChange={(e) => setInputValue(e.target.value)}
                                     onKeyDown={handleKeyPress}
-                                    placeholder="Ask about courses, enrollment..."
+                                    placeholder={
+                                        useRag && ragDocs.some((d) => d.status === 'indexed')
+                                            ? 'Ask about your file (summary, facts, what it says…)…'
+                                            : 'Ask about courses, enrollment…'
+                                    }
                                     className="flex-1 bg-transparent border-none outline-none text-sm py-2 text-slate-800 dark:text-slate-100 placeholder:text-slate-400"
                                 />
                                 <motion.button

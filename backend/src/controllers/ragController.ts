@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import mongoose from 'mongoose';
 import type { AuthRequest } from '../middleware/auth.js';
+import '../models/RagChunk.js';
 import RagUserDocument from '../models/RagUserDocument.js';
 import { canAccessRag } from '../services/ragAccessService.js';
 import logger from '../utils/logger.js';

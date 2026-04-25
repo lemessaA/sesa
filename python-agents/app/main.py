@@ -15,7 +15,7 @@ from fastapi import APIRouter, FastAPI, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from app.graph import GRAPH
-from app.rag.bm25_store import RAGStore, ingest_user_document
+from app.rag.vector_store import RAGStore, ingest_user_document
 from app.rag.extract_text import SUPPORTED_TEXT_EXTENSIONS, extract_text_from_bytes
 
 app = FastAPI(
@@ -53,6 +53,8 @@ class InvokeBody(BaseModel):
 
 
 def _health_payload() -> dict:
+    from app.rag.vector_store import _use_mongo_backend
+
     return {
         "data": {
             "status": "healthy",
@@ -61,6 +63,7 @@ def _health_payload() -> dict:
                 "groq": bool(os.environ.get("GROQ_API_KEY", "").strip()),
                 "backendRefresh": bool(os.environ.get("BACKEND_INTERNAL_API_BASE", "").strip()),
                 "rag": True,
+                "ragVectorBackend": "mongo" if _use_mongo_backend() else "chroma",
             },
         }
     }

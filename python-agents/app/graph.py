@@ -134,7 +134,7 @@ def router_node(state: AgentState) -> dict[str, str]:
 
 
 def attach_rag_node(state: AgentState) -> dict[str, Any]:
-    from app.rag.bm25_store import RAGStore, search_user_rag
+    from app.rag.vector_store import RAGStore, search_user_rag
 
     if not state.get("use_rag"):
         return {"rag_context": "", "rag_citations": []}
@@ -152,9 +152,9 @@ def attach_rag_node(state: AgentState) -> dict[str, Any]:
         hits = search_user_rag(uid, q, top_k=5)
     except Exception:
         return {"rag_context": "(RAG index unavailable.)", "rag_citations": []}
-    if (not hits) and st.chunks:
+    if (not hits) and st.has_chunks:
         hits = st.fallback_diverse_excerpts(max_docs=5, max_len=2_500)
-    if (not hits) and udn and (not st.chunks):
+    if (not hits) and udn and (not st.has_chunks):
         # App DB says files exist, but this Python has no RAG data (wrong host / wiped volume / ingest went elsewhere)
         return {
             "rag_context": (

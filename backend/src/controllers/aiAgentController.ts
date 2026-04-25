@@ -6,6 +6,7 @@ import { buildAgentDashboardContext } from './dashboardController.js';
 import { createChatResponse } from '../services/aiService.js';
 import { invokeLangGraphAgent } from '../services/langGraphAgentClient.js';
 import { canAccessRag } from '../services/ragAccessService.js';
+import RagUserDocument from '../models/RagUserDocument.js';
 import logger from '../utils/logger.js';
 import { sendProblem } from '../utils/problemJson.js';
 
@@ -112,6 +113,15 @@ export const postAgentMessage = async (req: AuthRequest, res: Response) => {
               : 'default';
         const ragAllowed = await canAccessRag(userId, String(role));
         const useRagEffective = Boolean(useRag) && ragAllowed;
+        const indexedNames = useRagEffective
+          ? (
+              await RagUserDocument.find({ userId, status: 'indexed' })
+                .select('originalName')
+                .lean()
+            )
+              .map((d) => d.originalName)
+              .filter((n) => n && n.trim().length > 0)
+          : [];
         const agentOut = await invokeLangGraphAgent({
           user_message: message,
           role: String(role),
@@ -121,6 +131,7 @@ export const postAgentMessage = async (req: AuthRequest, res: Response) => {
           conversation_history: history,
           use_rag: useRagEffective,
           response_mode,
+          user_document_names: indexedNames,
         });
         return res.status(200).json({
           data: {
