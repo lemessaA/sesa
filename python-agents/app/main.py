@@ -11,10 +11,12 @@ from dotenv import load_dotenv
 # Load python-agents/.env before any code reads os.environ (must precede `app.graph` import).
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from app.graph import GRAPH
+from app.rag.bm25_store import RAGStore, ingest_user_document
+from app.rag.extract_text import SUPPORTED_TEXT_EXTENSIONS, extract_text_from_bytes
 
 app = FastAPI(
     title="SESA LangGraph Agent",
@@ -24,6 +26,7 @@ app = FastAPI(
     description="Internal LLM service. In production, traffic should come from the SESA Node API.",
 )
 v1 = APIRouter(prefix="/v1", tags=["agent"])
+rag = APIRouter(prefix="/v1/rag", tags=["rag"])
 
 
 class InvokeBody(BaseModel):
@@ -33,6 +36,18 @@ class InvokeBody(BaseModel):
     user_id: str | None = None
     dashboard_context: dict = Field(default_factory=dict)
     conversation_history: list[dict] = Field(default_factory=list)
+    use_rag: bool = False
+    response_mode: str = "default"
+    # tutorial | research | conversation | conversation_history | default
+
+    @property
+    def response_mode_norm(self) -> str:
+        m = (self.response_mode or "default").strip().lower()
+        if m in ("conversation_history", "conversation"):
+            return "conversation"
+        if m in ("tutorial", "research", "default"):
+            return m
+        return "default"
 
 
 def _health_payload() -> dict:
@@ -43,6 +58,7 @@ def _health_payload() -> dict:
             "capabilities": {
                 "groq": bool(os.environ.get("GROQ_API_KEY", "").strip()),
                 "backendRefresh": bool(os.environ.get("BACKEND_INTERNAL_API_BASE", "").strip()),
+                "rag": True,
             },
         }
     }
@@ -59,6 +75,44 @@ def health_v1():
     return _health_payload()
 
 
+@rag.get("/supported-types")
+def rag_supported():
+    return {"extensions": list(SUPPORTED_TEXT_EXTENSIONS)}
+
+
+@rag.post("/ingest")
+async def rag_ingest(
+    file: UploadFile = File(...),
+    user_id: str = Form(...),
+    document_id: str = Form(...),
+    original_name: str = Form(""),
+):
+    if not (user_id or "").strip() or not (document_id or "").strip():
+        raise HTTPException(400, "user_id and document_id are required")
+    raw = await file.read()
+    max_b = 20 * 1024 * 1024
+    if len(raw) > max_b:
+        raise HTTPException(413, f"File too large (max {max_b // (1024 * 1024)}MB)")
+    name = (original_name or file.filename or "upload").strip()
+    try:
+        text = extract_text_from_bytes(name, raw)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(400, f"Could not read document: {e!s}") from e
+    if not (text and text.strip()):
+        raise HTTPException(400, "No extractable text in file")
+    if len(text) > 1_000_000:
+        text = text[:1_000_000] + "\n\n[...truncated for indexing]"
+    n = ingest_user_document(user_id.strip(), document_id.strip(), name, text)
+    return {"ok": True, "document_id": document_id.strip(), "chunks_indexed": n}
+
+
+@rag.delete("/documents/{user_id}/{document_id}")
+def rag_delete_document(user_id: str, document_id: str):
+    st = RAGStore.load(user_id)
+    removed = st.remove_document(document_id)
+    return {"ok": True, "chunks_removed": removed}
+
+
 async def _run_completion(body: InvokeBody) -> dict:
     initial = {
         "user_message": body.user_message,
@@ -67,6 +121,8 @@ async def _run_completion(body: InvokeBody) -> dict:
         "user_id": (body.user_id or "").strip(),
         "dashboard_context": body.dashboard_context or {},
         "conversation_history": body.conversation_history or [],
+        "use_rag": bool(body.use_rag),
+        "response_mode": body.response_mode_norm,
     }
     try:
         result = await asyncio.to_thread(GRAPH.invoke, initial)
@@ -78,6 +134,7 @@ async def _run_completion(body: InvokeBody) -> dict:
         "intent": result.get("intent") or "general",
         "quiz": result.get("quiz"),
         "recommendations": result.get("recommendations"),
+        "rag_citations": result.get("rag_citations") or [],
     }
 
 
@@ -93,3 +150,4 @@ async def invoke_legacy(body: InvokeBody):
 
 
 app.include_router(v1)
+app.include_router(rag)

@@ -390,12 +390,33 @@ export const apiService = {
    * Legacy /api/ai-agent/chat still works; prefer this path. Response: { data: { reply, intent, ... } }.
    */
   aiAgent: {
-    chat: (message: string, conversationHistory?: { role: string; content: string }[]) =>
+    chat: (
+      message: string,
+      conversationHistory?: { role: string; content: string }[],
+      options?: { useRag?: boolean; responseMode?: string }
+    ) =>
       api.post(
         '/v1/agent/messages',
-        { message, conversationHistory },
+        {
+          message,
+          conversationHistory,
+          useRag: options?.useRag,
+          responseMode: options?.responseMode,
+        },
         { timeout: 120000 }
       ),
+  },
+
+  /** RAG: user document upload + list (indexing in python-agents). */
+  rag: {
+    access: () => api.get('/v1/rag/access'),
+    listDocuments: () => api.get('/v1/rag/documents'),
+    uploadDocument: (file: File) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      return api.post('/v1/rag/documents', fd, { timeout: 120000 });
+    },
+    deleteDocument: (id: string) => api.delete(`/v1/rag/documents/${id}`),
   },
 
   // AI tutor endpoints

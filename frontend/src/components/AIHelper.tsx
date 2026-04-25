@@ -1,6 +1,6 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, X, Send, Sparkles, Loader2, User, Trash2, ChevronRight } from 'lucide-react';
+import { Bot, X, Send, Sparkles, Loader2, User, Trash2, ChevronRight, Upload, FileText } from 'lucide-react';
 import apiService from '../utils/api';
 
 interface ChatMessage {
@@ -23,7 +23,16 @@ type AgentChatPayload = {
     quiz?: { questions?: Array<Record<string, unknown>> };
     recommendations?: Array<{ title?: string; reason?: string; courseTitle?: string; courseId?: string }>;
     intent?: string;
+    /** From Node API (camelCase). */
+    ragCitations?: string[];
 };
+
+const RESPONSE_MODES: { id: string; label: string }[] = [
+    { id: 'default', label: 'Default' },
+    { id: 'tutorial', label: 'Tutorial' },
+    { id: 'research', label: 'Research' },
+    { id: 'conversation', label: 'Conversation' },
+];
 
 function formatAgentReply(data: AgentChatPayload): string {
     const parts: string[] = [];
@@ -50,6 +59,9 @@ function formatAgentReply(data: AgentChatPayload): string {
             .join('\n');
         parts.push(`\n**Suggested next steps:**\n${lines}`);
     }
+    if (data.ragCitations && data.ragCitations.length > 0) {
+        parts.push(`\n**Sources (your uploads):** ${data.ragCitations.join(' · ')}`);
+    }
     return parts.join('\n') || 'Sorry, I could not generate a response right now. Please try again.';
 }
 
@@ -66,7 +78,59 @@ const AIHelper: React.FC = () => {
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [showQuickActions, setShowQuickActions] = useState(true);
+    const [useRag, setUseRag] = useState(true);
+    const [responseMode, setResponseMode] = useState('default');
+    const [ragDocs, setRagDocs] = useState<
+        { id: string; originalName: string; status: string; chunkCount?: number }[]
+    >([]);
+    const [uploadBusy, setUploadBusy] = useState(false);
+    const [ragEligible, setRagEligible] = useState<boolean | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const loadRagAccess = useCallback(async () => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setRagEligible(null);
+            return;
+        }
+        try {
+            const res = await apiService.rag.access();
+            const eligible = Boolean((res.data as { data?: { eligible?: boolean } })?.data?.eligible);
+            setRagEligible(eligible);
+            if (!eligible) setUseRag(false);
+        } catch {
+            setRagEligible(false);
+            setUseRag(false);
+        }
+    }, []);
+
+    const loadRagDocs = useCallback(async () => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        try {
+            const res = await apiService.rag.listDocuments();
+            const data = (res.data as { data?: { documents?: typeof ragDocs } })?.data;
+            if (data?.documents) setRagDocs(data.documents);
+        } catch {
+            setRagDocs([]);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (isOpen) {
+            void loadRagAccess();
+        }
+    }, [isOpen, loadRagAccess]);
+
+    useEffect(() => {
+        if (isOpen && ragEligible === true) {
+            void loadRagDocs();
+        }
+        if (isOpen && ragEligible === false) {
+            setRagDocs([]);
+        }
+    }, [isOpen, ragEligible, loadRagDocs]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -83,14 +147,22 @@ const AIHelper: React.FC = () => {
         const token = localStorage.getItem('token');
         if (token) {
             try {
-                const res = await apiService.aiAgent.chat(input, conversationHistory);
+                const res = await apiService.aiAgent.chat(input, conversationHistory, {
+                    useRag,
+                    responseMode,
+                });
                 const raw = res.data as { data?: AgentChatPayload } & Partial<AgentChatPayload>;
-                const payload: AgentChatPayload = raw.data ?? {
-                    reply: raw.reply,
-                    intent: raw.intent,
-                    quiz: raw.quiz,
-                    recommendations: raw.recommendations,
+                const d = raw.data;
+                const payload: AgentChatPayload = {
+                    reply: d?.reply ?? raw.reply,
+                    intent: d?.intent ?? raw.intent,
+                    quiz: d?.quiz ?? raw.quiz,
+                    recommendations: d?.recommendations ?? raw.recommendations,
+                    ragCitations: d?.ragCitations,
                 };
+                if (d && 'ragAccessDenied' in d && (d as { ragAccessDenied?: boolean }).ragAccessDenied && useRag) {
+                    payload.reply = `${payload.reply || ''}\n\n_Note: Document-based answers (RAG) are only available to students with an approved course enrollment._`;
+                }
                 return formatAgentReply(payload);
             } catch (err) {
                 console.warn('[AIHelper] ai-agent chat failed, falling back to public /ai/chat', err);
@@ -150,6 +222,31 @@ const AIHelper: React.FC = () => {
         setShowQuickActions(true);
     };
 
+    const onPickFile = () => fileInputRef.current?.click();
+    const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const f = e.target.files?.[0];
+        e.target.value = '';
+        if (!f) return;
+        setUploadBusy(true);
+        try {
+            await apiService.rag.uploadDocument(f);
+            await loadRagDocs();
+        } catch (err) {
+            console.error('[AIHelper] RAG upload failed', err);
+        } finally {
+            setUploadBusy(false);
+        }
+    };
+
+    const removeDoc = async (id: string) => {
+        try {
+            await apiService.rag.deleteDocument(id);
+            await loadRagDocs();
+        } catch (err) {
+            console.error('[AIHelper] RAG delete failed', err);
+        }
+    };
+
     const formatTime = (date: Date) => {
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
@@ -182,7 +279,7 @@ const AIHelper: React.FC = () => {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 20, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
-                        className="fixed bottom-6 right-6 z-50 w-[360px] max-w-[calc(100vw-24px)] md:w-[420px] h-[540px] max-h-[calc(100vh-80px)] bg-white dark:bg-[#112240] rounded-2xl shadow-2xl border border-gray-100 dark:border-slate-700 flex flex-col overflow-hidden text-slate-800 dark:text-slate-100"
+                        className="fixed bottom-6 right-6 z-50 w-[360px] max-w-[calc(100vw-24px)] md:w-[420px] h-[min(620px,92vh)] max-h-[calc(100vh-80px)] bg-white dark:bg-[#112240] rounded-2xl shadow-2xl border border-gray-100 dark:border-slate-700 flex flex-col overflow-hidden text-slate-800 dark:text-slate-100"
                     >
                         {/* Header */}
                         <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-cyan-600 to-blue-700 text-white flex-shrink-0">
@@ -215,8 +312,90 @@ const AIHelper: React.FC = () => {
                             </div>
                         </div>
 
+                        {/* RAG: enrolled students only */}
+                        {ragEligible === null && (
+                            <div className="px-3 py-2 text-[10px] text-slate-500 dark:text-slate-400 border-b border-slate-200/80 dark:border-slate-600">
+                                Checking document features…
+                            </div>
+                        )}
+                        {ragEligible === false && (
+                            <div className="px-3 py-2 bg-amber-50/90 dark:bg-amber-950/40 border-b border-amber-200/80 dark:border-amber-800 flex-shrink-0 text-[11px] text-amber-900 dark:text-amber-100">
+                                Document upload and “use my documents” in chat are available only to students with at least one
+                                <strong> approved </strong>
+                                course enrollment.
+                            </div>
+                        )}
+                        {ragEligible === true && (
+                        <div className="px-3 py-2 bg-slate-100/90 dark:bg-slate-900/80 border-b border-slate-200/80 dark:border-slate-600 flex-shrink-0 text-[11px] space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <label className="flex items-center gap-1.5 cursor-pointer text-slate-700 dark:text-slate-200">
+                                    <input
+                                        type="checkbox"
+                                        checked={useRag}
+                                        onChange={(e) => setUseRag(e.target.checked)}
+                                        className="rounded border-slate-400"
+                                    />
+                                    Use my documents
+                                </label>
+                                <select
+                                    value={responseMode}
+                                    onChange={(e) => setResponseMode(e.target.value)}
+                                    className="ml-auto text-[11px] rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-slate-800 dark:text-slate-100 max-w-[9rem]"
+                                    title="Response style"
+                                >
+                                    {RESPONSE_MODES.map((m) => (
+                                        <option key={m.id} value={m.id}>
+                                            {m.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    className="hidden"
+                                    accept=".txt,.md,.pdf,.docx,.html,.htm,.csv,.json,.yml,.yaml,.xml,.log"
+                                    onChange={onFileChange}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={onPickFile}
+                                    disabled={uploadBusy}
+                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-600/90 text-white hover:bg-cyan-500 disabled:opacity-50"
+                                >
+                                    {uploadBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                                    Add document
+                                </button>
+                                <span className="text-slate-500 dark:text-slate-400 truncate">
+                                    PDF, DOCX, TXT, MD, HTML, CSV, JSON…
+                                </span>
+                            </div>
+                            {ragDocs.length > 0 && (
+                                <ul className="max-h-16 overflow-y-auto space-y-0.5 text-slate-600 dark:text-slate-300">
+                                    {ragDocs.map((d) => (
+                                        <li key={d.id} className="flex items-center justify-between gap-1">
+                                            <span className="flex items-center gap-1 truncate" title={d.originalName}>
+                                                <FileText className="w-3 h-3 flex-shrink-0" />
+                                                <span className="truncate">{d.originalName}</span>
+                                                <span className="text-slate-400 flex-shrink-0">({d.status})</span>
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => void removeDoc(d.id)}
+                                                className="text-red-500 hover:underline flex-shrink-0"
+                                            >
+                                                remove
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                        )}
+
                         {/* Messages Area */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-[#0a192f]">
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-[#0a192f] min-h-0">
                             <AnimatePresence initial={false}>
                                 {messages.map((msg) => (
                                     <motion.div

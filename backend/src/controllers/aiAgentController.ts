@@ -5,6 +5,7 @@ import { UserRole } from '../models/User.js';
 import { buildAgentDashboardContext } from './dashboardController.js';
 import { createChatResponse } from '../services/aiService.js';
 import { invokeLangGraphAgent } from '../services/langGraphAgentClient.js';
+import { canAccessRag } from '../services/ragAccessService.js';
 import logger from '../utils/logger.js';
 import { sendProblem } from '../utils/problemJson.js';
 
@@ -71,9 +72,11 @@ export const postAgentMessage = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const role = normalizeRole(req.user!.role);
-    const { message, conversationHistory } = req.body as {
+    const { message, conversationHistory, useRag, responseMode } = req.body as {
       message?: string;
       conversationHistory?: { role: string; content: string }[];
+      useRag?: boolean;
+      responseMode?: string;
     };
 
     if (!message || typeof message !== 'string' || !message.trim()) {
@@ -100,6 +103,15 @@ export const postAgentMessage = async (req: AuthRequest, res: Response) => {
     const langGraphEnabled = Boolean(process.env.LANGGRAPH_AGENT_URL?.trim());
     if (langGraphEnabled) {
       try {
+        const mode = (responseMode || 'default').toLowerCase();
+        const response_mode =
+          mode === 'conversation_history' || mode === 'conversation'
+            ? 'conversation'
+            : mode === 'tutorial' || mode === 'research' || mode === 'default'
+              ? (mode as 'tutorial' | 'research' | 'default')
+              : 'default';
+        const ragAllowed = await canAccessRag(userId, String(role));
+        const useRagEffective = Boolean(useRag) && ragAllowed;
         const agentOut = await invokeLangGraphAgent({
           user_message: message,
           role: String(role),
@@ -107,6 +119,8 @@ export const postAgentMessage = async (req: AuthRequest, res: Response) => {
           user_id: userId,
           dashboard_context: dashboard,
           conversation_history: history,
+          use_rag: useRagEffective,
+          response_mode,
         });
         return res.status(200).json({
           data: {
@@ -114,6 +128,8 @@ export const postAgentMessage = async (req: AuthRequest, res: Response) => {
             intent: agentOut.intent,
             quiz: agentOut.quiz,
             recommendations: agentOut.recommendations,
+            ragCitations: agentOut.rag_citations,
+            ragAccessDenied: Boolean(useRag) && !ragAllowed,
             source: 'langgraph' as const,
           },
         });

@@ -17,6 +17,7 @@ export const getApiV1Index = (_req: Request, res: Response) => {
         agent: { href: '/api/v1/agent' },
         agentHealth: { href: '/api/v1/agent/health' },
         agentMessages: { href: '/api/v1/agent/messages', method: 'POST' as const, description: 'Send user message' },
+        ragDocuments: { href: '/api/v1/rag/documents' },
       },
     },
   });

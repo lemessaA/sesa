@@ -1,3 +1,5 @@
+export type AgentResponseMode = 'default' | 'tutorial' | 'research' | 'conversation' | 'conversation_history';
+
 export type AgentInvokePayload = {
   user_message: string;
   role: string;
@@ -6,6 +8,9 @@ export type AgentInvokePayload = {
   user_id?: string;
   dashboard_context: Record<string, unknown>;
   conversation_history?: { role: string; content: string }[];
+  /** When true, LangGraph runs BM25 over user-uploaded docs (RAG). */
+  use_rag?: boolean;
+  response_mode?: AgentResponseMode;
 };
 
 export type AgentInvokeResponse = {
@@ -13,6 +18,7 @@ export type AgentInvokeResponse = {
   intent: string;
   quiz?: { questions?: unknown[] };
   recommendations?: { title?: string; reason?: string; courseId?: string }[];
+  rag_citations?: string[];
 };
 
 export async function invokeLangGraphAgent(

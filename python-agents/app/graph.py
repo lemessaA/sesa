@@ -33,6 +33,43 @@ class AgentState(TypedDict, total=False):
     reply: str
     quiz: dict[str, Any]
     recommendations: list[dict[str, Any]]
+    use_rag: bool
+    response_mode: str
+    rag_context: str
+    rag_citations: list[str]
+
+
+def _response_mode_extras(response_mode: str) -> str:
+    m = (response_mode or "default").strip().lower()
+    if m == "tutorial":
+        return (
+            "Response mode: TUTORIAL. Use numbered steps, define jargon briefly, "
+            "and prioritize clarity. When RETRIEVED SOURCES are present, ground steps in them."
+        )
+    if m == "research":
+        return (
+            "Response mode: RESEARCH. Synthesize the RETRIEVED SOURCES and dashboard data; "
+            "prefer bullets, mark uncertainty, and mention which source each key claim leans on."
+        )
+    if m == "conversation" or m == "conversation_history":
+        return (
+            "Response mode: CONVERSATION. Be natural and concise; use prior messages for continuity; "
+            "avoid a lecture tone unless the user requests depth. Still use RETRIEVED SOURCES when relevant."
+        )
+    return (
+        "Response mode: DEFAULT. Balanced, clear answers; use RETRIEVED SOURCES as supporting evidence when provided."
+    )
+
+
+def _rag_block(state: AgentState) -> str:
+    rctx = (state.get("rag_context") or "").strip()
+    if not rctx or rctx.startswith("(No relevant"):
+        return ""
+    return "\n\n--- RETRIEVED SOURCES (user-uploaded documents) ---\n" + rctx
+
+
+def _mode_suffix(state: AgentState) -> str:
+    return "\n\n" + _response_mode_extras(str(state.get("response_mode") or "default"))
 
 
 def _llm() -> ChatGroq:
@@ -59,6 +96,42 @@ def router_node(state: AgentState) -> dict[str, str]:
     )
     out = llm.invoke([SystemMessage(content=sys), HumanMessage(content=text)])
     return {"intent": out.intent}
+
+
+def attach_rag_node(state: AgentState) -> dict[str, Any]:
+    from app.rag.bm25_store import search_user_rag
+
+    if not state.get("use_rag"):
+        return {"rag_context": "", "rag_citations": []}
+    uid = (state.get("user_id") or "").strip()
+    if not uid:
+        return {"rag_context": "", "rag_citations": []}
+    q = (state.get("user_message") or "").strip()
+    if not q:
+        return {"rag_context": "", "rag_citations": []}
+    try:
+        hits = search_user_rag(uid, q, top_k=5)
+    except Exception:
+        return {"rag_context": "(RAG index unavailable.)", "rag_citations": []}
+    if not hits:
+        return {
+            "rag_context": "(No relevant passages in uploaded documents for this question.)",
+            "rag_citations": [],
+        }
+    lines: list[str] = []
+    names: list[str] = []
+    for h in hits:
+        name = h.get("source_name") or "document"
+        names.append(name)
+        lines.append(f"[{name}]\n{h.get('text', '')}")
+    uniq: list[str] = []
+    for n in names:
+        if n not in uniq:
+            uniq.append(n)
+    return {
+        "rag_context": "\n\n---\n\n".join(lines),
+        "rag_citations": uniq[:8],
+    }
 
 
 def route_from_intent(state: AgentState) -> str:
@@ -105,6 +178,8 @@ def app_help_node(state: AgentState) -> dict[str, str]:
         + state.get("role", "student")
         + "\nDashboard snapshot (JSON):\n"
         + dash
+        + _rag_block(state)
+        + _mode_suffix(state)
         + "\nGive short, actionable steps. Mention quickActions routes when relevant."
     )
     text = llm.invoke(
@@ -122,9 +197,12 @@ def quiz_node(state: AgentState) -> dict[str, Any]:
     sys = (
         "You write educational quiz JSON for the SESA app. "
         "Use the user's message as the topic. If the dashboard lists enrolled or recommended courses, prefer those titles when relevant.\n"
+        "When RETRIEVED SOURCES are given, base questions on that material when it fits the topic.\n"
         "Respond with a single JSON object ONLY, no markdown, shape:\n"
         '{"questions":[{"question":"str","type":"multiple_choice|true_false|short_answer","options":["A","B","C","D"] or [],"correct_answer":0 or "text","explanation":"str","difficulty":"easy|medium|hard"}]}\n'
         f"Dashboard JSON (may be partial):\n{dash}"
+        + _rag_block(state)
+        + _mode_suffix(state)
     )
     raw = llm.invoke(
         [SystemMessage(content=sys), HumanMessage(content=state["user_message"])]
@@ -151,7 +229,7 @@ def recommend_node(state: AgentState) -> dict[str, Any]:
     llm = _llm()
     dash = _dash_str(state)
     sys = (
-        "You are a learning coach for SESA. Using ONLY the dashboard JSON, suggest concrete next steps "
+        "You are a learning coach for SESA. Using the dashboard JSON and any RETRIEVED SOURCES, suggest concrete next steps "
         "(which course to open, whether to browse recommendations, certificates to pursue, or time on in-progress courses). "
         "Also output structured recommendations as JSON embedded in your answer in this exact pattern on the last line:\n"
         "RECOMMENDATIONS_JSON::"
@@ -159,6 +237,8 @@ def recommend_node(state: AgentState) -> dict[str, Any]:
         "The last line must start with RECOMMENDATIONS_JSON:: followed by valid JSON array."
         "\nDashboard:\n"
         + dash
+        + _rag_block(state)
+        + _mode_suffix(state)
     )
     text = llm.invoke(
         [
@@ -186,12 +266,16 @@ def general_node(state: AgentState) -> dict[str, str]:
     dash = _dash_str(state)
     sys = (
         "You are SafeEdu SESA assistant: helpful, concise, friendly. "
-        "You may lightly reference dashboard JSON if it helps personalize the answer.\n"
+        "You may reference dashboard JSON and RETRIEVED SOURCES to personalize and ground answers.\n"
         + dash
+        + _rag_block(state)
+        + _mode_suffix(state)
     )
+    mode = (state.get("response_mode") or "default").lower()
+    limit = 12 if mode in ("conversation", "conversation_history") else 6
     hist = state.get("conversation_history") or []
     msgs = [SystemMessage(content=sys)]
-    for turn in hist[-6:]:
+    for turn in hist[-limit:]:
         role = turn.get("role", "user")
         content = turn.get("content", "")
         if role == "assistant":
@@ -205,6 +289,7 @@ def general_node(state: AgentState) -> dict[str, str]:
 
 def build_graph():
     g = StateGraph(AgentState)
+    g.add_node("attach_rag", attach_rag_node)
     g.add_node("router", router_node)
     g.add_node("refresh_context", refresh_dashboard_node)
     g.add_node("app_help", app_help_node)
@@ -212,7 +297,8 @@ def build_graph():
     g.add_node("recommend", recommend_node)
     g.add_node("general", general_node)
 
-    g.add_edge(START, "router")
+    g.add_edge(START, "attach_rag")
+    g.add_edge("attach_rag", "router")
     g.add_edge("router", "refresh_context")
     g.add_conditional_edges(
         "refresh_context",

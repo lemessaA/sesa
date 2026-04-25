@@ -35,6 +35,8 @@ import evaluationRoutes from './routes/evaluations.js';
 import videoWorkflowRoutes from './routes/videoWorkflowRoutes.js';
 import aiRoutes from './routes/ai.js';
 import { agentV1Router, agentLegacyRouter, getApiV1Index } from './routes/agentApi.js';
+import ragRoutes from './routes/ragRoutes.js';
+import { ensureRagUploadRoot } from './controllers/ragController.js';
 import aiTutorRoutes from './routes/aiTutor.js';
 import quizRoutes from './routes/quizzes.js';
 import assignmentRoutes from './routes/assignments.js';
@@ -259,6 +261,7 @@ app.use(
   agentLegacyRouter
 );
 app.use('/api/v1/agent', agentV1Router);
+app.use('/api/v1/rag', ragRoutes);
 app.use('/api/ai-tutor', aiTutorRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/assignments', assignmentRoutes);
@@ -344,6 +347,7 @@ mongoose.connection.on('error', (err) => {
     logger.error(`[Database] Mongoose connection error: ${err.message}`);
 });
 
+void ensureRagUploadRoot();
 connectDB();
 
 // ── Handle unhandled rejections ───────────────────────────────────────────────
