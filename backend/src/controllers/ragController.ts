@@ -65,8 +65,8 @@ async function forwardIngestToPython(params: {
             ? String(c)
             : '';
     const tip =
-      'RAG ingest is unreachable. Start the python-agents app, then set backend LANGGRAPH_AGENT_URL to its base ' +
-      'URL (no /v1 path) reachable from this Node process — e.g. http://127.0.0.1:8000. If the API runs in Docker, ' +
+      'RAG ingest is unreachable. From repo root run `npm run agent:dev` (serves 127.0.0.1:8088 by default) and set backend ' +
+      'LANGGRAPH_AGENT_URL to the same base URL (no /v1). If the API runs in Docker, ' +
       "use the container hostname or host.docker.internal, not localhost, unless the service is on the same host.";
     throw new Error(`${tip} [${cmsg || msg}] → ${ingestUrl}`);
   }

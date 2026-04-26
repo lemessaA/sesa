@@ -179,7 +179,7 @@ api.interceptors.response.use(
           const msg = getAxiosErrorMessage(error, 'RAG or upstream service error');
           console.error(`⚠️ [API] Bad Gateway (502): ${msg}`);
           console.error(
-            'Tip: Start the python-agents service and set LANGGRAPH_AGENT_URL on the backend to its base URL (e.g. http://127.0.0.1:8000).'
+            'Tip: From repo root run `npm run agent:dev` (or `cd python-agents && ./run-dev.sh`), and set backend LANGGRAPH_AGENT_URL to match (default http://127.0.0.1:8088).'
           );
           break;
         }
