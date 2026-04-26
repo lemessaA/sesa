@@ -12,10 +12,58 @@ from pathlib import Path
 from typing import Any
 
 import chromadb
+import numpy as np
 from chromadb import Collection
-from chromadb.utils import embedding_functions
+from chromadb.api.types import Documents, EmbeddingFunction, Embeddings, Space
 
 # Relative to package parent (python-agents/)
+
+
+class SesaRagChromaEmbeddings(EmbeddingFunction[Documents]):
+    """
+    Chroma's built-in `SentenceTransformerEmbeddingFunction` hard-fails if
+    `import sentence_transformers` is missing; we use `app.rag.embeddings`
+    (same as Mongo/Qdrant). Install: `pip install -r requirements.txt`
+    (needs sentence-transformers + torch, etc.).
+    """
+
+    def __init__(self) -> None:  # noqa: D107 — Chroma protocol
+        pass
+
+    def __call__(self, input: Documents) -> Embeddings:
+        from app.rag.embeddings import embed_texts
+
+        arr = embed_texts(list(input), normalize=True)
+        return [np.asarray(row, dtype=np.float32) for row in arr]
+
+    @staticmethod
+    def name() -> str:
+        return "sesa_rag"
+
+    def default_space(self) -> Space:
+        return "cosine"
+
+    @staticmethod
+    def build_from_config(config: dict) -> "SesaRagChromaEmbeddings":
+        return SesaRagChromaEmbeddings()
+
+    def get_config(self) -> dict:
+        from app.rag.embeddings import get_model_name
+
+        return {"source": "sesa_rag", "model": get_model_name()}
+
+    def __repr__(self) -> str:  # noqa: D105
+        return f"{self.__class__.__name__}()"
+
+
+_sesa_chroma_embedding: SesaRagChromaEmbeddings | None = None
+
+
+def _get_sesa_chroma_embedding() -> SesaRagChromaEmbeddings:
+    global _sesa_chroma_embedding
+    if _sesa_chroma_embedding is None:
+        _sesa_chroma_embedding = SesaRagChromaEmbeddings()
+    return _sesa_chroma_embedding
 
 
 def _data_root() -> Path:
@@ -42,17 +90,6 @@ def _collection_name(user_id: str) -> str:
     return name
 
 
-_embedding_fn: Any = None
-
-
-def _get_embedding_fn() -> Any:
-    global _embedding_fn
-    if _embedding_fn is None:
-        model = os.environ.get("RAG_EMBEDDING_MODEL", "all-MiniLM-L6-v2").strip()
-        _embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=model)
-    return _embedding_fn
-
-
 def _chroma_client() -> chromadb.PersistentClient:
     path = _data_root() / "chroma_db"
     path.mkdir(parents=True, exist_ok=True)
@@ -60,12 +97,17 @@ def _chroma_client() -> chromadb.PersistentClient:
 
 
 def _get_collection(user_id: str) -> Collection:
+    """
+    No Chroma `SentenceTransformerEmbeddingFunction` (it fails fast if the import path
+    to `sentence_transformers` is missing). We pass vectors from `app.rag.embeddings`
+    (same as Mongo/Qdrant) so RAG has one model path. Requires `pip install -r requirements.txt`.
+    """
     client = _chroma_client()
     name = _collection_name(user_id)
     return client.get_or_create_collection(
         name=name,
-        embedding_function=_get_embedding_fn(),
         metadata={"user_id": user_id},
+        embedding_function=_get_sesa_chroma_embedding(),
     )
 
 
@@ -101,7 +143,11 @@ def _migrate_json_if_needed(user_id: str, col: Collection) -> None:
         return
     batch = 128
     for i in range(0, len(ids), batch):
-        col.add(ids=ids[i : i + batch], documents=docs[i : i + batch], metadatas=metas[i : i + batch])
+        col.add(
+            ids=ids[i : i + batch],
+            documents=docs[i : i + batch],
+            metadatas=metas[i : i + batch],
+        )
     try:
         legacy.rename(legacy.with_suffix(".json.bak"))
     except OSError:

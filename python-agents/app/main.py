@@ -53,7 +53,7 @@ class InvokeBody(BaseModel):
 
 
 def _health_payload() -> dict:
-    from app.rag.vector_store import _use_mongo_backend
+    from app.rag.vector_store import active_rag_backend
 
     return {
         "data": {
@@ -63,7 +63,7 @@ def _health_payload() -> dict:
                 "groq": bool(os.environ.get("GROQ_API_KEY", "").strip()),
                 "backendRefresh": bool(os.environ.get("BACKEND_INTERNAL_API_BASE", "").strip()),
                 "rag": True,
-                "ragVectorBackend": "mongo" if _use_mongo_backend() else "chroma",
+                "ragVectorBackend": active_rag_backend(),
             },
         }
     }
@@ -107,7 +107,10 @@ async def rag_ingest(
         raise HTTPException(400, "No extractable text in file")
     if len(text) > 1_000_000:
         text = text[:1_000_000] + "\n\n[...truncated for indexing]"
-    n = ingest_user_document(user_id.strip(), document_id.strip(), name, text)
+    try:
+        n = ingest_user_document(user_id.strip(), document_id.strip(), name, text)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(500, f"RAG indexing failed: {e!s}") from e
     return {"ok": True, "document_id": document_id.strip(), "chunks_indexed": n}
 
 

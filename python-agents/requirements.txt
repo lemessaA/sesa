@@ -1,3 +1,7 @@
+# Embeddings: `sentence-transformers` needs `torch`. On Linux, plain `pip install` often
+# resolves a CUDA `torch` and huge NVIDIA wheels (e.g. nvidia-cudnn-cu13) → timeouts.
+# Use CPU-only torch first, then the rest (see `install-deps-cpu.sh`).
+#
 # [standard] includes the `fastapi` CLI (`fastapi dev`) and uvicorn[standard]
 fastapi[standard]>=0.115.0
 langgraph>=0.2.0
@@ -9,6 +13,7 @@ python-dotenv>=1.0.0
 pypdf>=4.0.0
 python-docx>=1.0.0
 chromadb>=0.5.0
+qdrant-client>=1.12.0
 sentence-transformers>=3.0.0
 pymongo>=4.6.0
 numpy>=1.24.0
