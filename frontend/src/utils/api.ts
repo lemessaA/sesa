@@ -1,4 +1,23 @@
-import axios, { type InternalAxiosRequestConfig } from 'axios';
+import axios, { isAxiosError, type InternalAxiosRequestConfig } from 'axios';
+
+/** Prefer Problem+JSON `detail`, then `message` / `title` (API may omit `message` on 4xx/5xx). */
+export function getAxiosErrorMessage(error: unknown, fallback = 'Unknown error'): string {
+  if (!isAxiosError(error) || !error.response?.data) {
+    if (isAxiosError(error) && error.message) return error.message;
+    return fallback;
+  }
+  const data = error.response.data as Record<string, unknown> | string;
+  if (typeof data === 'string' && data.trim()) return data.slice(0, 2000);
+  if (data && typeof data === 'object') {
+    const detail = data['detail'];
+    if (typeof detail === 'string' && detail.trim()) return detail;
+    const message = data['message'];
+    if (typeof message === 'string' && message.trim()) return message;
+    const title = data['title'];
+    if (typeof title === 'string' && title.trim()) return title;
+  }
+  return fallback;
+}
 
 // API Configuration
 // Ensure the base URL always has the /api prefix for consistency
@@ -148,21 +167,33 @@ api.interceptors.response.use(
           }
           break;
         case 403:
-          console.error('Access denied:', error.response?.data?.message);
+          console.error('Access denied:', getAxiosErrorMessage(error, 'Access denied'));
           break;
         case 404:
-          console.error('Resource not found:', error.response?.data?.message);
+          console.error('Resource not found:', getAxiosErrorMessage(error, 'Not found'));
           break;
         case 500:
-          console.error('❌ [API] Server Error:', error.response?.data?.message || 'Internal Server Error');
+          console.error('❌ [API] Server Error:', getAxiosErrorMessage(error, 'Internal Server Error'));
           break;
-        case 503:
-          const dbMsg = error.response?.data?.message || 'Database connection error';
+        case 502: {
+          const msg = getAxiosErrorMessage(error, 'RAG or upstream service error');
+          console.error(`⚠️ [API] Bad Gateway (502): ${msg}`);
+          console.error(
+            'Tip: Start the python-agents service and set LANGGRAPH_AGENT_URL on the backend to its base URL (e.g. http://127.0.0.1:8000).'
+          );
+          break;
+        }
+        case 503: {
+          const dbMsg = getAxiosErrorMessage(error, 'Database connection error');
           console.error(`🛑 [API] Service Unavailable (503): ${dbMsg}`);
           console.error('Tip: Make sure MongoDB is running and access is allowed in your DB dashboard (Whitelist IP).');
           break;
+        }
         default:
-          console.error(`⚠️ [API] Error (${error.response.status}):`, error.response?.data?.message || 'Unknown error');
+          console.error(
+            `⚠️ [API] Error (${error.response.status}):`,
+            getAxiosErrorMessage(error, 'Unknown error')
+          );
       }
     } else if (error.request) {
       console.error('🔌 [API] Network Error: No response received. Is the backend server running?', error.message);

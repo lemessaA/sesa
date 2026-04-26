@@ -68,9 +68,32 @@ def _response_mode_extras(response_mode: str) -> str:
 
 def _rag_block(state: AgentState) -> str:
     rctx = (state.get("rag_context") or "").strip()
+    udn = [str(s).strip() for s in (state.get("user_document_names") or []) if str(s).strip()][:20]
+    use = bool(state.get("use_rag"))
     if rctx.startswith("SYNC_INFO:"):
         return "\n\n" + rctx
-    if not rctx or rctx.startswith("(No relevant") or rctx.startswith("(RAG index"):
+    if rctx.startswith("(RAG index"):
+        if use and udn:
+            return (
+                "\n\n--- DOCUMENT INDEX (user uploads) ---\n"
+                f"Indexed in the app: {', '.join(udn)}. The local search index is unavailable. "
+                "Do not invent text from the file; suggest retrying or re-uploading while the RAG/ingest service is running."
+            )
+        return "\n\n" + rctx
+    if rctx.startswith("(No relevant"):
+        block = f"\n\n--- RETRIEVED SOURCES (user-uploaded documents) ---\n{rctx}"
+        if use and udn:
+            block += (
+                f"\n\n(Indexed file names: {', '.join(udn)}. No passage matched the query. "
+                "If they asked about the file, suggest rephrasing, asking for a full summary, or pasting a short quote/keyword.)"
+            )
+        return block
+    if not rctx and use and udn:
+        return (
+            "\n\n--- USER INDEXED UPLOADS ---\n"
+            f"File(s) on record: {', '.join(udn)}. (No text excerpts in this turn — still use filenames if the user asked about their materials.)"
+        )
+    if not rctx:
         return ""
     return "\n\n--- RETRIEVED SOURCES (user-uploaded documents) ---\n" + rctx
 
@@ -249,9 +272,17 @@ def route_from_intent(state: AgentState) -> str:
                 "read",
                 "notes",
                 "material",
+                "chapter",
+                "section",
+                "page",
+                "attachment",
+                "attached",
+                "homework",
+                "the paper",
+                "my book",
             )
         )
-        if (not nav) and fileish and intent in ("app_help", "general", "recommend"):
+        if (not nav) and fileish and intent in ("app_help", "general", "recommend", "quiz"):
             return "document_qa"
     if intent in ("app_help", "quiz", "recommend", "general", "document_qa"):
         return intent
