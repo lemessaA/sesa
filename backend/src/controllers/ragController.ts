@@ -42,11 +42,34 @@ async function forwardIngestToPython(params: {
   form.append('original_name', params.originalName);
   form.append('file', new Blob([new Uint8Array(params.buffer)]), params.originalName);
 
-  const res = await fetch(`${base}/v1/rag/ingest`, {
-    method: 'POST',
-    body: form,
-    signal: AbortSignal.timeout(120_000),
-  });
+  const ingestUrl = `${base}/v1/rag/ingest`;
+  let res: Awaited<ReturnType<typeof fetch>>;
+  try {
+    res = await fetch(ingestUrl, {
+      method: 'POST',
+      body: form,
+      signal: AbortSignal.timeout(120_000),
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const c =
+      e && typeof e === 'object' && 'cause' in e
+        ? (e as { cause?: Error | { code?: string; message?: string } }).cause
+        : undefined;
+    const cmsg =
+      c instanceof Error
+        ? c.message
+        : c && typeof c === 'object' && 'code' in c
+          ? String((c as { code?: string }).code)
+          : c != null
+            ? String(c)
+            : '';
+    const tip =
+      'RAG ingest is unreachable. Start the python-agents app, then set backend LANGGRAPH_AGENT_URL to its base ' +
+      'URL (no /v1 path) reachable from this Node process — e.g. http://127.0.0.1:8000. If the API runs in Docker, ' +
+      "use the container hostname or host.docker.internal, not localhost, unless the service is on the same host.";
+    throw new Error(`${tip} [${cmsg || msg}] → ${ingestUrl}`);
+  }
   const text = await res.text();
   if (!res.ok) {
     let detail = text.slice(0, 500);

@@ -148,15 +148,27 @@ def router_node(state: AgentState) -> dict[str, str]:
     rag_note = ""
     if state.get("use_rag"):
         cites = state.get("rag_citations") or []
-        if cites:
+        rctx0 = (state.get("rag_context") or "").strip()
+        if cites and rctx0 and not rctx0.startswith(
+            ("(No relevant", "SYNC_INFO:", "(RAG index")
+        ):
             rag_note = (
                 f"\nIMPORTANT: The user turned on document mode. The system already pulled text from their upload(s): "
                 f"{', '.join(cites)}. If the question can be answered from those materials (summary, facts, ‘what does it say’, "
                 f"‘explain this file’), you MUST output intent document_qa — not app_help or general.\n"
             )
+        elif cites and (
+            rctx0.startswith("(No relevant")
+            or rctx0.startswith("SYNC_INFO:")
+            or rctx0.startswith("(RAG index")
+        ):
+            rag_note = (
+                f"\nDocument mode: indexed file name(s) on file: {', '.join(cites)}. "
+                "If the user is asking about their file’s *content* (not the SESA app), choose document_qa — not app_help or recommend.\n"
+            )
         else:
             rag_note = (
-                "\nIMPORTANT: Document mode is ON; excerpts may be broad. "
+                "\nIMPORTANT: Document mode is ON. "
                 "If the user is asking about their own file, PDF, or ‘what it says’ / ‘explain’ / ‘summary’, use document_qa — not app_help.\n"
             )
     sys = (
