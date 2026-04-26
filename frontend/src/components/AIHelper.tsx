@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, X, Send, Sparkles, Loader2, User, Trash2, ChevronRight, Upload, FileText } from 'lucide-react';
+import { Bot, X, Send, Loader2, User, MessageSquarePlus, Paperclip, FileText } from 'lucide-react';
 import apiService from '../utils/api';
 
 interface ChatMessage {
@@ -91,6 +91,7 @@ const AIHelper: React.FC = () => {
     const [ragEligible, setRagEligible] = useState<boolean | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const loadRagAccess = useCallback(async () => {
         const token = localStorage.getItem('token');
@@ -200,6 +201,9 @@ const AIHelper: React.FC = () => {
 
         setMessages((prev) => [...prev, userMsg]);
         setInputValue('');
+        if (textareaRef.current) {
+            textareaRef.current.style.height = '44px';
+        }
         setIsTyping(true);
         setShowQuickActions(false);
 
@@ -221,7 +225,12 @@ const AIHelper: React.FC = () => {
     };
 
     const handleSend = () => sendMessage(inputValue);
-    const handleKeyPress = (e: React.KeyboardEvent) => { if (e.key === 'Enter') handleSend(); };
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (!isTyping && inputValue.trim()) void handleSend();
+        }
+    };
 
     const clearChat = () => {
         setMessages([{
@@ -265,265 +274,288 @@ const AIHelper: React.FC = () => {
 
     return (
         <>
-            {/* Floating Action Button */}
+            {/* Launcher — ChatGPT-style floating button */}
             <motion.button
+                type="button"
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => setIsOpen(true)}
-                className={`fixed bottom-6 right-6 z-50 p-4 rounded-full shadow-lg text-white flex items-center justify-center transition-all ${
-                    isOpen ? 'opacity-0 scale-0 pointer-events-none' : 'opacity-100 bg-gradient-to-r from-cyan-500 to-blue-600 hover:shadow-cyan-500/30 hover:shadow-xl'
+                className={`fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-zinc-900 text-white shadow-lg shadow-zinc-900/25 ring-1 ring-zinc-700/50 transition-all dark:bg-white dark:text-zinc-900 dark:ring-zinc-200/30 ${
+                    isOpen ? 'pointer-events-none scale-0 opacity-0' : 'opacity-100'
                 }`}
+                aria-label="Open SESA assistant"
             >
-                <Bot className="w-6 h-6" />
-                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                </span>
+                <Bot className="h-6 w-6" />
             </motion.button>
 
-            {/* Chat Window */}
             <AnimatePresence>
                 {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
-                        className="fixed bottom-6 right-6 z-50 w-[360px] max-w-[calc(100vw-24px)] md:w-[420px] h-[min(620px,92vh)] max-h-[calc(100vh-80px)] bg-white dark:bg-[#112240] rounded-2xl shadow-2xl border border-gray-100 dark:border-slate-700 flex flex-col overflow-hidden text-slate-800 dark:text-slate-100"
-                    >
-                        {/* Header */}
-                        <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-cyan-600 to-blue-700 text-white flex-shrink-0">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                                    <Sparkles className="w-4 h-4 text-cyan-200" />
+                    <>
+                        <motion.div
+                            className="fixed inset-0 z-40 cursor-pointer bg-zinc-950/40 sm:bg-zinc-950/25"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsOpen(false)}
+                            aria-hidden
+                        />
+                        <motion.div
+                            role="dialog"
+                            aria-label="SESA AI chat"
+                            initial={{ opacity: 0, y: 16 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 12 }}
+                            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="fixed z-50 flex h-[100dvh] w-full max-h-[100dvh] flex-col overflow-hidden bg-white sm:bottom-5 sm:right-5 sm:top-auto sm:left-auto sm:h-[min(720px,calc(100dvh-2.5rem))] sm:max-h-[min(720px,calc(100dvh-2.5rem))] sm:w-full sm:max-w-[420px] sm:rounded-2xl dark:bg-zinc-900 dark:ring-1 dark:ring-zinc-700/80 shadow-2xl"
+                        >
+                            {/* Header — minimal like ChatGPT */}
+                            <header className="flex h-[52px] flex-shrink-0 items-center justify-between border-b border-zinc-200/90 bg-white px-2 dark:border-zinc-800 dark:bg-zinc-900">
+                                <div className="flex min-w-0 items-center gap-2 pl-1">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-800">
+                                        <Bot className="h-4 w-4 text-zinc-700 dark:text-zinc-200" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <h2 className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                                            SESA
+                                        </h2>
+                                        <p className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">Assistant</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 className="font-bold text-sm leading-tight">SESA AI Assistant</h3>
-                                    <span className="text-[10px] text-cyan-200 flex items-center gap-1">
-                                        <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                                        Online
-                                    </span>
+                                <div className="flex items-center gap-0.5 pr-0.5">
+                                    <button
+                                        type="button"
+                                        onClick={clearChat}
+                                        className="rounded-lg p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                                        title="New chat"
+                                    >
+                                        <MessageSquarePlus className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsOpen(false)}
+                                        className="rounded-lg p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                                        title="Close"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <button
-                                    onClick={clearChat}
-                                    className="p-1.5 rounded-lg hover:bg-white/20 transition-colors"
-                                    title="Clear chat"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                    onClick={() => setIsOpen(false)}
-                                    className="p-1.5 rounded-lg hover:bg-white/20 transition-colors"
-                                >
-                                    <X className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
+                            </header>
 
-                        {/* RAG: enrolled students only */}
-                        {ragEligible === null && (
-                            <div className="px-3 py-2 text-[10px] text-slate-500 dark:text-slate-400 border-b border-slate-200/80 dark:border-slate-600">
-                                Checking document features…
-                            </div>
-                        )}
-                        {ragEligible === false && (
-                            <div className="px-3 py-2 bg-amber-50/90 dark:bg-amber-950/40 border-b border-amber-200/80 dark:border-amber-800 flex-shrink-0 text-[11px] text-amber-900 dark:text-amber-100">
-                                Document upload and “use my documents” in chat are available only to students with at least one
-                                <strong> approved </strong>
-                                course enrollment.
-                            </div>
-                        )}
-                        {ragEligible === true && (
-                        <div className="px-3 py-2 bg-slate-100/90 dark:bg-slate-900/80 border-b border-slate-200/80 dark:border-slate-600 flex-shrink-0 text-[11px] space-y-2">
-                            {useRag && ragDocs.some((d) => d.status === 'indexed') && (
-                                <p className="text-[10px] text-cyan-700 dark:text-cyan-300/90">
-                                    The assistant can read your indexed files. Ask about content, or use “My uploaded file” in quick actions.
-                                </p>
+                            {/* RAG strip — compact toolbar */}
+                            {ragEligible === null && (
+                                <div className="border-b border-zinc-100 px-3 py-2 text-[11px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-500">
+                                    Checking document features…
+                                </div>
                             )}
-                            <div className="flex flex-wrap items-center gap-2">
-                                <label className="flex items-center gap-1.5 cursor-pointer text-slate-700 dark:text-slate-200">
-                                    <input
-                                        type="checkbox"
-                                        checked={useRag}
-                                        onChange={(e) => setUseRag(e.target.checked)}
-                                        className="rounded border-slate-400"
-                                    />
-                                    Use my documents
-                                </label>
-                                <select
-                                    value={responseMode}
-                                    onChange={(e) => setResponseMode(e.target.value)}
-                                    className="ml-auto text-[11px] rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-slate-800 dark:text-slate-100 max-w-[9rem]"
-                                    title="Response style"
-                                >
-                                    {RESPONSE_MODES.map((m) => (
-                                        <option key={m.id} value={m.id}>
-                                            {m.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    className="hidden"
-                                    accept=".txt,.md,.pdf,.docx,.html,.htm,.csv,.json,.yml,.yaml,.xml,.log"
-                                    onChange={onFileChange}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={onPickFile}
-                                    disabled={uploadBusy}
-                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-600/90 text-white hover:bg-cyan-500 disabled:opacity-50"
-                                >
-                                    {uploadBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                                    Add document
-                                </button>
-                                <span className="text-slate-500 dark:text-slate-400 truncate">
-                                    PDF, DOCX, TXT, MD, HTML, CSV, JSON…
-                                </span>
-                            </div>
-                            {ragDocs.length > 0 && (
-                                <ul className="max-h-16 overflow-y-auto space-y-0.5 text-slate-600 dark:text-slate-300">
-                                    {ragDocs.map((d) => (
-                                        <li key={d.id} className="flex items-center justify-between gap-1">
-                                            <span className="flex items-center gap-1 truncate" title={d.originalName}>
-                                                <FileText className="w-3 h-3 flex-shrink-0" />
-                                                <span className="truncate">{d.originalName}</span>
-                                                <span className="text-slate-400 flex-shrink-0">({d.status})</span>
-                                            </span>
+                            {ragEligible === false && (
+                                <div className="border-b border-amber-200/80 bg-amber-50/95 px-3 py-2 text-[11px] text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+                                    Document chat needs an approved course enrollment. General assistant still works.
+                                </div>
+                            )}
+                            {ragEligible === true && (
+                                <div className="border-b border-zinc-100 bg-zinc-50/80 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900/50">
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px]">
+                                        <label className="inline-flex cursor-pointer items-center gap-1.5 text-zinc-700 dark:text-zinc-300">
+                                            <input
+                                                type="checkbox"
+                                                checked={useRag}
+                                                onChange={(e) => setUseRag(e.target.checked)}
+                                                className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400 dark:border-zinc-600"
+                                            />
+                                            <span>Documents</span>
+                                        </label>
+                                        <select
+                                            value={responseMode}
+                                            onChange={(e) => setResponseMode(e.target.value)}
+                                            className="rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[11px] text-zinc-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200"
+                                        >
+                                            {RESPONSE_MODES.map((m) => (
+                                                <option key={m.id} value={m.id}>
+                                                    {m.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <div className="ml-auto flex items-center gap-1">
+                                            <input
+                                                ref={fileInputRef}
+                                                type="file"
+                                                className="hidden"
+                                                accept=".txt,.md,.pdf,.docx,.html,.htm,.csv,.json,.yml,.yaml,.xml,.log"
+                                                onChange={onFileChange}
+                                            />
                                             <button
                                                 type="button"
-                                                onClick={() => void removeDoc(d.id)}
-                                                className="text-red-500 hover:underline flex-shrink-0"
+                                                onClick={onPickFile}
+                                                disabled={uploadBusy}
+                                                className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                                                title="Upload"
                                             >
-                                                remove
+                                                {uploadBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
                                             </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
-                        )}
-
-                        {/* Messages Area */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-[#0a192f] min-h-0">
-                            <AnimatePresence initial={false}>
-                                {messages.map((msg) => (
-                                    <motion.div
-                                        key={msg.id}
-                                        initial={{ opacity: 0, y: 10, scale: 0.97 }}
-                                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                                        transition={{ duration: 0.2 }}
-                                        className={`flex items-start gap-2 ${msg.sender === 'user' ? 'flex-row-reverse' : ''}`}
-                                    >
-                                        <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${
-                                            msg.sender === 'user'
-                                                ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300'
-                                                : 'bg-gradient-to-br from-cyan-500 to-blue-600 text-white'
-                                        }`}>
-                                            {msg.sender === 'user' ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
                                         </div>
-                                        <div className={`group max-w-[78%]`}>
-                                            <div className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
-                                                msg.sender === 'user'
-                                                    ? 'bg-blue-600 text-white rounded-tr-sm'
-                                                    : 'bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-tl-sm text-slate-700 dark:text-slate-200'
-                                            }`}>
-                                                {msg.text}
-                                            </div>
-                                            <p className={`text-[10px] text-slate-400 mt-1 ${msg.sender === 'user' ? 'text-right' : 'text-left'}`}>
-                                                {formatTime(msg.timestamp)}
-                                            </p>
-                                        </div>
-                                    </motion.div>
-                                ))}
-                            </AnimatePresence>
-
-                            {isTyping && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 8 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="flex items-start gap-2"
-                                >
-                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-white flex items-center justify-center flex-shrink-0">
-                                        <Bot className="w-3.5 h-3.5" />
                                     </div>
-                                    <div className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-2xl rounded-tl-sm px-4 py-3">
-                                        <div className="flex gap-1 items-center">
-                                            {[0, 1, 2].map(i => (
-                                                <motion.div
-                                                    key={i}
-                                                    className="w-2 h-2 bg-cyan-500 rounded-full"
-                                                    animate={{ y: [0, -6, 0] }}
-                                                    transition={{ duration: 0.6, delay: i * 0.15, repeat: Infinity }}
-                                                />
+                                    {ragDocs.length > 0 && (
+                                        <ul className="mt-1.5 max-h-14 space-y-0.5 overflow-y-auto text-[10px] text-zinc-600 dark:text-zinc-400">
+                                            {ragDocs.map((d) => (
+                                                <li key={d.id} className="flex items-center justify-between gap-1">
+                                                    <span className="flex min-w-0 items-center gap-1">
+                                                        <FileText className="h-3 w-3 flex-shrink-0" />
+                                                        <span className="truncate">{d.originalName}</span>
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => void removeDoc(d.id)}
+                                                        className="flex-shrink-0 text-red-500 hover:underline"
+                                                    >
+                                                        remove
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Message list — full-width stream + side-aligned user (ChatGPT-like) */}
+                            <div className="min-h-0 flex-1 overflow-y-auto bg-zinc-50 dark:bg-zinc-950">
+                                {messages.length === 1 && !isTyping && (
+                                    <div className="px-4 pt-6 text-center">
+                                        <p className="text-lg font-medium text-zinc-800 dark:text-zinc-100">SESA</p>
+                                        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                                            How can I help you today?
+                                        </p>
+                                    </div>
+                                )}
+                                <div className="space-y-0 pb-2">
+                                    {messages.map((msg) => (
+                                        <div
+                                            key={msg.id}
+                                            className={
+                                                msg.sender === 'user'
+                                                    ? 'border-b border-transparent'
+                                                    : 'border-b border-zinc-100/80 dark:border-zinc-800/80'
+                                            }
+                                        >
+                                            <div
+                                                className={
+                                                    msg.sender === 'user'
+                                                        ? 'mx-auto flex w-full max-w-3xl justify-end gap-3 px-4 py-3'
+                                                        : 'mx-auto flex w-full max-w-3xl gap-3 px-4 py-3'
+                                                }
+                                            >
+                                                {msg.sender === 'ai' && (
+                                                    <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-sm bg-zinc-200/90 dark:bg-zinc-800">
+                                                        <Bot className="h-3.5 w-3.5 text-zinc-600 dark:text-zinc-300" />
+                                                    </div>
+                                                )}
+                                                {msg.sender === 'user' && (
+                                                    <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-sm bg-zinc-300/80 dark:bg-zinc-700">
+                                                        <User className="h-3.5 w-3.5 text-zinc-700 dark:text-zinc-200" />
+                                                    </div>
+                                                )}
+                                                <div
+                                                    className={
+                                                        msg.sender === 'user'
+                                                            ? 'min-w-0 max-w-[min(100%,20rem)] rounded-2xl bg-zinc-200 px-3.5 py-2.5 text-[15px] leading-7 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100'
+                                                            : 'min-w-0 flex-1 text-[15px] leading-7 text-zinc-800 dark:text-zinc-200'
+                                                    }
+                                                >
+                                                    <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                                                    <p
+                                                        className={
+                                                            msg.sender === 'user'
+                                                                ? 'mt-1 text-right text-[10px] text-zinc-500 dark:text-zinc-500'
+                                                                : 'mt-1 text-[10px] text-zinc-400 dark:text-zinc-500'
+                                                        }
+                                                    >
+                                                        {formatTime(msg.timestamp)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {isTyping && (
+                                        <div className="border-b border-zinc-100/80 dark:border-zinc-800/80">
+                                            <div className="mx-auto flex max-w-3xl gap-3 px-4 py-3">
+                                                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-sm bg-zinc-200/90 dark:bg-zinc-800">
+                                                    <Bot className="h-3.5 w-3.5 text-zinc-600 dark:text-zinc-300" />
+                                                </div>
+                                                <div className="flex items-center gap-1.5 py-1">
+                                                    {[0, 1, 2].map((i) => (
+                                                        <motion.span
+                                                            key={i}
+                                                            className="h-1.5 w-1.5 rounded-full bg-zinc-400 dark:bg-zinc-500"
+                                                            animate={{ opacity: [0.35, 1, 0.35] }}
+                                                            transition={{ duration: 1.1, delay: i * 0.15, repeat: Infinity }}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div ref={messagesEndRef} />
+                                </div>
+                            </div>
+
+                            {/* Suggested starters — chip row */}
+                            <AnimatePresence>
+                                {showQuickActions && messages.length <= 1 && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="flex-shrink-0 border-t border-zinc-200/80 bg-zinc-50/95 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900/90"
+                                    >
+                                        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">Suggestions</p>
+                                        <div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
+                                            {QUICK_ACTIONS.map((action) => (
+                                                <button
+                                                    key={action.label}
+                                                    type="button"
+                                                    onClick={() => sendMessage(action.query)}
+                                                    className="rounded-full border border-zinc-200/90 bg-white px-2.5 py-1 text-left text-[11px] text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                                                >
+                                                    {action.label}
+                                                </button>
                                             ))}
                                         </div>
-                                    </div>
-                                </motion.div>
-                            )}
-                            <div ref={messagesEndRef} />
-                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
 
-                        {/* Quick Actions */}
-                        <AnimatePresence>
-                            {showQuickActions && messages.length <= 1 && (
-                                <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    className="px-3 py-2 bg-white dark:bg-[#112240] border-t border-gray-100 dark:border-slate-700 flex-shrink-0"
-                                >
-                                    <p className="text-[10px] text-slate-400 mb-2 font-medium uppercase tracking-wider">Quick questions</p>
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {QUICK_ACTIONS.map((action) => (
-                                            <button
-                                                key={action.label}
-                                                onClick={() => sendMessage(action.query)}
-                                                className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 hover:bg-cyan-50 dark:hover:bg-cyan-900/30 hover:text-cyan-700 dark:hover:text-cyan-300 text-slate-600 dark:text-slate-300 text-[11px] font-medium rounded-xl border border-slate-200 dark:border-slate-700 hover:border-cyan-300 dark:hover:border-cyan-700 transition-all"
-                                            >
-                                                {action.label}
-                                                <ChevronRight className="w-2.5 h-2.5 opacity-60" />
-                                            </button>
-                                        ))}
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-
-                        {/* Input Area */}
-                        <div className="p-3 bg-white dark:bg-[#112240] border-t border-gray-100 dark:border-slate-700 flex-shrink-0">
-                            <div className="flex items-center gap-2 bg-gray-50 dark:bg-slate-900/50 rounded-2xl border border-gray-200 dark:border-slate-600 p-1 pl-4 focus-within:border-cyan-500 dark:focus-within:border-cyan-400 transition-colors">
-                                <input
-                                    type="text"
-                                    value={inputValue}
-                                    onChange={(e) => setInputValue(e.target.value)}
-                                    onKeyDown={handleKeyPress}
-                                    placeholder={
-                                        useRag && ragDocs.some((d) => d.status === 'indexed')
-                                            ? 'Ask about your file (summary, facts, what it says…)…'
-                                            : 'Ask about courses, enrollment…'
-                                    }
-                                    className="flex-1 bg-transparent border-none outline-none text-sm py-2 text-slate-800 dark:text-slate-100 placeholder:text-slate-400"
-                                />
-                                <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={handleSend}
-                                    disabled={!inputValue.trim() || isTyping}
-                                    className="p-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white disabled:opacity-40 transition-all flex-shrink-0 shadow-sm"
-                                >
-                                    {isTyping ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                                </motion.button>
+                            {/* Composer — ChatGPT-style pill */}
+                            <div className="flex-shrink-0 border-t border-zinc-200/90 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+                                <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-zinc-200/90 bg-zinc-50/90 px-2 py-1.5 shadow-sm dark:border-zinc-700 dark:bg-zinc-800/80">
+                                    <textarea
+                                        ref={textareaRef}
+                                        rows={1}
+                                        value={inputValue}
+                                        onChange={(e) => {
+                                            setInputValue(e.target.value);
+                                            e.target.style.height = '44px';
+                                            e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
+                                        }}
+                                        onKeyDown={handleKeyDown}
+                                        placeholder="Message SESA…"
+                                        className="max-h-40 min-h-[44px] w-full flex-1 resize-none bg-transparent px-2 py-2.5 text-[15px] leading-5 text-zinc-900 placeholder:text-zinc-400 focus:outline-none dark:text-zinc-100 dark:placeholder:text-zinc-500"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleSend}
+                                        disabled={!inputValue.trim() || isTyping}
+                                        className="mb-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-white transition hover:bg-zinc-800 disabled:opacity-30 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+                                        title="Send"
+                                    >
+                                        {isTyping ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                    </button>
+                                </div>
+                                <p className="mt-1.5 text-center text-[10px] text-zinc-400 dark:text-zinc-500">Enter to send · Shift+Enter for new line</p>
                             </div>
-                        </div>
-                    </motion.div>
+                        </motion.div>
+                    </>
                 )}
             </AnimatePresence>
         </>
