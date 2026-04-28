@@ -11,6 +11,8 @@ export interface IRagUserDocument extends Document {
   pythonStoreKey: string;
   status: RagDocStatus;
   errorMessage?: string;
+  /** Full extracted text (used by the assistant; capped on save). */
+  extractedText?: string;
   chunkCount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -23,10 +25,11 @@ const ragUserDocumentSchema = new Schema<IRagUserDocument>(
     mimeType: { type: String, default: 'application/octet-stream' },
     sizeBytes: { type: Number, required: true, min: 0 },
     storageRelativePath: { type: String, required: true },
-    /** Same id sent to the Python RAG store (usually Mongo _id as hex string) */
+    /** Same as Mongo _id hex (stable id for this upload). */
     pythonStoreKey: { type: String, required: true, index: true },
     status: { type: String, enum: ['pending', 'indexed', 'error'], default: 'pending' },
     errorMessage: { type: String },
+    extractedText: { type: String },
     chunkCount: { type: Number, default: 0 },
   },
   { timestamps: true }

@@ -30,8 +30,16 @@ def active_rag_backend() -> str:
     """
     mode = (os.environ.get("RAG_VECTOR_BACKEND") or "auto").strip().lower()
     if mode == "qdrant":
+        if not _qdrant_configured():
+            raise RuntimeError(
+                "RAG_VECTOR_BACKEND=qdrant requires QDRANT_URL or RAG_QDRANT_URL (e.g. http://127.0.0.1:6333)."
+            )
         return "qdrant"
     if mode == "mongo":
+        if not _mongo_configured():
+            raise RuntimeError(
+                "RAG_VECTOR_BACKEND=mongo requires MONGO_URI or MONGODB_URI in the agent environment."
+            )
         return "mongo"
     if mode == "chroma":
         return "chroma"

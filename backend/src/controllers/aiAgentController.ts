@@ -10,6 +10,29 @@ import RagUserDocument from '../models/RagUserDocument.js';
 import logger from '../utils/logger.js';
 import { sendProblem } from '../utils/problemJson.js';
 
+/** Max characters of extracted text sent to the agent in one request. */
+const MAX_DOCUMENT_CONTEXT_CHARS = 120_000;
+
+function buildDocumentContextBundle(
+  docs: { originalName: string; extractedText?: string | null }[]
+): string {
+  const parts: string[] = [];
+  let used = 0;
+  for (const d of docs) {
+    const text = (d.extractedText || '').trim();
+    if (!text) continue;
+    const header = `### FILE: ${d.originalName}\n\n`;
+    const room = MAX_DOCUMENT_CONTEXT_CHARS - used - header.length;
+    if (room <= 100) break;
+    const body = text.length > room ? `${text.slice(0, room)}\n\n[...file truncated for chat context]` : text;
+    const block = header + body;
+    parts.push(block);
+    used += block.length;
+    if (used >= MAX_DOCUMENT_CONTEXT_CHARS) break;
+  }
+  return parts.join('\n\n---\n\n');
+}
+
 function normalizeRole(role: string): UserRole {
   const allowed = Object.values(UserRole) as string[];
   if (allowed.includes(role)) return role as UserRole;
@@ -113,15 +136,20 @@ export const postAgentMessage = async (req: AuthRequest, res: Response) => {
               : 'default';
         const ragAllowed = await canAccessRag(userId, String(role));
         const useRagEffective = Boolean(useRag) && ragAllowed;
-        const indexedNames = useRagEffective
-          ? (
-              await RagUserDocument.find({ userId, status: 'indexed' })
-                .select('originalName')
-                .lean()
-            )
-              .map((d) => d.originalName)
-              .filter((n) => n && n.trim().length > 0)
+        const indexedDocs = useRagEffective
+          ? await RagUserDocument.find({
+              userId,
+              status: 'indexed',
+              extractedText: { $exists: true, $nin: [null, ''] },
+            })
+              .select('originalName extractedText')
+              .lean()
           : [];
+        const indexedNames = indexedDocs
+          .map((d) => d.originalName)
+          .filter((n) => n && String(n).trim().length > 0);
+        const document_context =
+          useRagEffective && indexedDocs.length > 0 ? buildDocumentContextBundle(indexedDocs) : undefined;
         const agentOut = await invokeLangGraphAgent({
           user_message: message,
           role: String(role),
@@ -132,6 +160,7 @@ export const postAgentMessage = async (req: AuthRequest, res: Response) => {
           use_rag: useRagEffective,
           response_mode,
           user_document_names: indexedNames,
+          document_context,
         });
         return res.status(200).json({
           data: {

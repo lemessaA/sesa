@@ -167,7 +167,7 @@ const AIHelper: React.FC = () => {
                     ragCitations: d?.ragCitations,
                 };
                 if (d && 'ragAccessDenied' in d && (d as { ragAccessDenied?: boolean }).ragAccessDenied && useRag) {
-                    payload.reply = `${payload.reply || ''}\n\n_Note: Document-based answers (RAG) are only available to students with an approved course enrollment._`;
+                    payload.reply = `${payload.reply || ''}\n\n_Note: Answers from your uploaded documents are only available to students with an approved course enrollment._`;
                 }
                 return formatAgentReply(payload);
             } catch (err) {
@@ -178,7 +178,7 @@ const AIHelper: React.FC = () => {
                         'The assistant could not reach the document-aware agent. Check that LANGGRAPH_AGENT_URL is set and the python-agents service is running.'
                     );
                     showError(msg);
-                    return 'I could not use your uploaded documents for this answer because the personal agent is unavailable. Fix the RAG service or try again without document mode, or rephrase in a new message.';
+                    return 'I could not use your uploaded documents for this answer because the personal agent is unavailable. Ensure LANGGRAPH_AGENT_URL is set and python-agents is running, or turn off Documents and try again.';
                 }
             }
         }
@@ -251,7 +251,7 @@ const AIHelper: React.FC = () => {
             await loadRagDocs();
         } catch (err) {
             const msg = getAxiosErrorMessage(err, 'Document upload failed');
-            console.error('[AIHelper] RAG upload failed', err);
+            console.error('[AIHelper] document upload failed', err);
             showError(msg);
         } finally {
             setUploadBusy(false);
@@ -263,7 +263,7 @@ const AIHelper: React.FC = () => {
             await apiService.rag.deleteDocument(id);
             await loadRagDocs();
         } catch (err) {
-            console.error('[AIHelper] RAG delete failed', err);
+            console.error('[AIHelper] document delete failed', err);
         }
     };
 
@@ -343,7 +343,7 @@ const AIHelper: React.FC = () => {
                                 </div>
                             </header>
 
-                            {/* RAG strip — compact toolbar */}
+                            {/* Document toolbar */}
                             {ragEligible === null && (
                                 <div className="border-b border-zinc-100 px-3 py-2 text-[11px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-500">
                                     Checking document features…

@@ -9,13 +9,13 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Load python-agents/.env before any code reads os.environ (must precede `app.graph` import).
-load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+# override=True: values in this file win over stray exports (e.g. QDRANT_URL from the shell when you commented it out).
+load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=True)
 
 from fastapi import APIRouter, FastAPI, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from app.graph import GRAPH
-from app.rag.vector_store import RAGStore, ingest_user_document
 from app.rag.extract_text import SUPPORTED_TEXT_EXTENSIONS, extract_text_from_bytes
 
 app = FastAPI(
@@ -38,9 +38,12 @@ class InvokeBody(BaseModel):
     conversation_history: list[dict] = Field(default_factory=list)
     use_rag: bool = False
     response_mode: str = "default"
-    # From Node: indexed upload filenames (same user_id as RAG store)
     user_document_names: list[str] = Field(default_factory=list)
-    # tutorial | research | conversation | conversation_history | default
+    document_context: str | None = Field(
+        default=None,
+        max_length=210_000,
+        description="Full extracted text bundled by Node (user uploads); used when use_rag is true.",
+    )
 
     @property
     def response_mode_norm(self) -> str:
@@ -53,8 +56,6 @@ class InvokeBody(BaseModel):
 
 
 def _health_payload() -> dict:
-    from app.rag.vector_store import active_rag_backend
-
     return {
         "data": {
             "status": "healthy",
@@ -62,8 +63,7 @@ def _health_payload() -> dict:
             "capabilities": {
                 "groq": bool(os.environ.get("GROQ_API_KEY", "").strip()),
                 "backendRefresh": bool(os.environ.get("BACKEND_INTERNAL_API_BASE", "").strip()),
-                "rag": True,
-                "ragVectorBackend": active_rag_backend(),
+                "documents": True,
             },
         }
     }
@@ -85,15 +85,12 @@ def rag_supported():
     return {"extensions": list(SUPPORTED_TEXT_EXTENSIONS)}
 
 
-@rag.post("/ingest")
-async def rag_ingest(
+@rag.post("/extract")
+async def rag_extract(
     file: UploadFile = File(...),
-    user_id: str = Form(...),
-    document_id: str = Form(...),
     original_name: str = Form(""),
 ):
-    if not (user_id or "").strip() or not (document_id or "").strip():
-        raise HTTPException(400, "user_id and document_id are required")
+    """Extract plain text from an upload (Node persists it; no vector index)."""
     raw = await file.read()
     max_b = 20 * 1024 * 1024
     if len(raw) > max_b:
@@ -105,23 +102,13 @@ async def rag_ingest(
         raise HTTPException(400, f"Could not read document: {e!s}") from e
     if not (text and text.strip()):
         raise HTTPException(400, "No extractable text in file")
-    if len(text) > 1_000_000:
-        text = text[:1_000_000] + "\n\n[...truncated for indexing]"
-    try:
-        n = ingest_user_document(user_id.strip(), document_id.strip(), name, text)
-    except Exception as e:  # noqa: BLE001
-        raise HTTPException(500, f"RAG indexing failed: {e!s}") from e
-    return {"ok": True, "document_id": document_id.strip(), "chunks_indexed": n}
-
-
-@rag.delete("/documents/{user_id}/{document_id}")
-def rag_delete_document(user_id: str, document_id: str):
-    st = RAGStore.load(user_id)
-    removed = st.remove_document(document_id)
-    return {"ok": True, "chunks_removed": removed}
+    return {"text": text, "char_count": len(text)}
 
 
 async def _run_completion(body: InvokeBody) -> dict:
+    dc = (body.document_context or "").strip()
+    if len(dc) > 200_000:
+        dc = dc[:200_000] + "\n\n[...truncated for this request]"
     initial = {
         "user_message": body.user_message,
         "role": body.role,
@@ -132,6 +119,7 @@ async def _run_completion(body: InvokeBody) -> dict:
         "use_rag": bool(body.use_rag),
         "response_mode": body.response_mode_norm,
         "user_document_names": [str(x) for x in (body.user_document_names or []) if str(x).strip()][:20],
+        "document_context": dc,
     }
     try:
         result = await asyncio.to_thread(GRAPH.invoke, initial)

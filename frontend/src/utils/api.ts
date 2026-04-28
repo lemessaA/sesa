@@ -176,7 +176,7 @@ api.interceptors.response.use(
           console.error('❌ [API] Server Error:', getAxiosErrorMessage(error, 'Internal Server Error'));
           break;
         case 502: {
-          const msg = getAxiosErrorMessage(error, 'RAG or upstream service error');
+          const msg = getAxiosErrorMessage(error, 'Document service or upstream error');
           console.error(`⚠️ [API] Bad Gateway (502): ${msg}`);
           console.error(
             'Tip: From repo root run `npm run dev:all` (agent + API + web) or `npm run agent:dev` in another terminal; set backend LANGGRAPH_AGENT_URL to http://127.0.0.1:8088 (no /v1).'
@@ -453,7 +453,7 @@ export const apiService = {
       ),
   },
 
-  /** RAG: user document upload + list (indexing in python-agents). */
+  /** User documents: upload, list, delete (text extracted via python-agents). */
   rag: {
     access: () => api.get('/v1/rag/access'),
     listDocuments: () => api.get('/v1/rag/documents'),

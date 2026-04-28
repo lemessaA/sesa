@@ -6,12 +6,12 @@ import type { AuthRequest } from '../middleware/auth.js';
 import '../models/RagChunk.js';
 import RagUserDocument from '../models/RagUserDocument.js';
 import { canAccessRag } from '../services/ragAccessService.js';
-import logger from '../utils/logger.js';
 import { sendProblem } from '../utils/problemJson.js';
 
 const RAG_SUBDIR = 'rag';
+const MAX_STORED_TEXT = 1_000_000;
 
-/** GET /api/v1/rag/access — for UI: whether the user may use RAG (enrolled students only). */
+/** GET /api/v1/rag/access — for UI: whether the user may use document Q&A (enrolled students only). */
 export const getRagAccess = async (req: AuthRequest, res: Response) => {
   const userId = req.user!.id;
   const role = req.user!.role;
@@ -20,32 +20,28 @@ export const getRagAccess = async (req: AuthRequest, res: Response) => {
     data: {
       eligible,
       message: eligible
-        ? 'You can upload documents and use them in the assistant.'
-        : 'RAG is only available to students with at least one approved enrollment.',
+        ? 'You can upload documents so the assistant can read them and answer from the full text.'
+        : 'Document Q&A is only available to students with at least one approved enrollment.',
     },
   });
 };
 
-async function forwardIngestToPython(params: {
+async function forwardExtractToPython(params: {
   buffer: Buffer;
   originalName: string;
-  userId: string;
-  documentId: string;
-}): Promise<{ chunks_indexed?: number }> {
+}): Promise<{ text: string; char_count?: number }> {
   const base = process.env.LANGGRAPH_AGENT_URL?.trim().replace(/\/+$/, '');
   if (!base) {
-    throw new Error('LANGGRAPH_AGENT_URL is not configured (required for RAG indexing)');
+    throw new Error('LANGGRAPH_AGENT_URL is not configured (required for document text extraction)');
   }
   const form = new FormData();
-  form.append('user_id', params.userId);
-  form.append('document_id', params.documentId);
   form.append('original_name', params.originalName);
   form.append('file', new Blob([new Uint8Array(params.buffer)]), params.originalName);
 
-  const ingestUrl = `${base}/v1/rag/ingest`;
+  const url = `${base}/v1/rag/extract`;
   let res: Awaited<ReturnType<typeof fetch>>;
   try {
-    res = await fetch(ingestUrl, {
+    res = await fetch(url, {
       method: 'POST',
       body: form,
       signal: AbortSignal.timeout(120_000),
@@ -65,43 +61,27 @@ async function forwardIngestToPython(params: {
             ? String(c)
             : '';
     const tip =
-      'RAG ingest is unreachable. Start the python-agents process (e.g. from repo root: `npm run dev:all` to run agent + API + web together, or `npm run agent:dev` in a second terminal). ' +
-      'Set backend LANGGRAPH_AGENT_URL to the agent base URL (default http://127.0.0.1:8088, no /v1).';
-    throw new Error(`${tip} [${cmsg || msg}] → ${ingestUrl}`);
+      'Document extract service is unreachable. Start python-agents (`npm run dev:all` or `npm run agent:dev`) and set LANGGRAPH_AGENT_URL (e.g. http://127.0.0.1:8088, no /v1).';
+    throw new Error(`${tip} [${cmsg || msg}] → ${url}`);
   }
-  const text = await res.text();
+  const body = await res.text();
   if (!res.ok) {
-    let detail = text.slice(0, 500);
+    let detail = body.slice(0, 500);
     try {
-      const j = JSON.parse(text) as { detail?: unknown };
+      const j = JSON.parse(body) as { detail?: unknown };
       if (j.detail) detail = String(j.detail);
     } catch {
       /* ignore */
     }
-    throw new Error(`RAG ingest failed (${res.status}): ${detail}`);
+    throw new Error(`Document extract failed (${res.status}): ${detail}`);
   }
-  return JSON.parse(text) as { chunks_indexed?: number };
-}
-
-async function forwardDeleteToPython(userId: string, documentId: string) {
-  const base = process.env.LANGGRAPH_AGENT_URL?.trim().replace(/\/+$/, '');
-  if (!base) return;
-  try {
-    const res = await fetch(`${base}/v1/rag/documents/${encodeURIComponent(userId)}/${encodeURIComponent(documentId)}`, {
-      method: 'DELETE',
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!res.ok) {
-      const t = await res.text();
-      logger.warn(`[RAG] Python delete non-ok ${res.status}: ${t.slice(0, 200)}`);
-    }
-  } catch (e) {
-    logger.warn('[RAG] Python delete failed', e);
-  }
+  const j = JSON.parse(body) as { text?: string; char_count?: number };
+  const text = typeof j.text === 'string' ? j.text : '';
+  return { text, char_count: j.char_count };
 }
 
 /**
- * POST /api/v1/rag/documents — multipart `file` field
+ * POST /api/v1/rag/documents — multipart `file` field; extracts full text via python-agents, stores in Mongo.
  */
 export const postRagDocument = async (req: AuthRequest, res: Response) => {
   const userId = req.user!.id;
@@ -124,14 +104,18 @@ export const postRagDocument = async (req: AuthRequest, res: Response) => {
 
   try {
     const buf = await fs.readFile(req.file.path);
-    const out = await forwardIngestToPython({
+    const out = await forwardExtractToPython({
       buffer: buf,
       originalName: doc.originalName,
-      userId,
-      documentId: key,
     });
+    const raw = out.text?.trim() || '';
+    if (!raw) {
+      throw new Error('No extractable text in file');
+    }
+    const stored = raw.length > MAX_STORED_TEXT ? `${raw.slice(0, MAX_STORED_TEXT)}\n\n[...truncated at ${MAX_STORED_TEXT} characters]` : raw;
     doc.status = 'indexed';
-    doc.chunkCount = out.chunks_indexed ?? 0;
+    doc.extractedText = stored;
+    doc.chunkCount = stored.length;
     doc.errorMessage = undefined;
     await doc.save();
     return res.status(201).json({
@@ -144,11 +128,11 @@ export const postRagDocument = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Indexing failed';
+    const msg = e instanceof Error ? e.message : 'Processing failed';
     doc.status = 'error';
     doc.errorMessage = msg;
     await doc.save();
-    return sendProblem(res, 502, 'BAD_GATEWAY', 'RAG Unavailable', msg);
+    return sendProblem(res, 502, 'BAD_GATEWAY', 'Document processing unavailable', msg);
   }
 };
 
@@ -187,7 +171,6 @@ export const deleteRagDocument = async (req: AuthRequest, res: Response) => {
   } catch {
     /* file may be gone */
   }
-  await forwardDeleteToPython(req.user!.id, doc.pythonStoreKey || id);
   await doc.deleteOne();
   return res.status(200).json({ data: { ok: true } });
 };

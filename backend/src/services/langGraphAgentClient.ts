@@ -8,11 +8,13 @@ export type AgentInvokePayload = {
   user_id?: string;
   dashboard_context: Record<string, unknown>;
   conversation_history?: { role: string; content: string }[];
-  /** When true, LangGraph runs BM25 over user-uploaded docs (RAG). */
+  /** When true, LangGraph uses `document_context` (full extracted text from uploads). */
   use_rag?: boolean;
   response_mode?: AgentResponseMode;
-  /** Indexed filenames from Mongo (must match the same user as user_id in the RAG store). */
+  /** Indexed filenames from Mongo (for citations / routing). */
   user_document_names?: string[];
+  /** Bundled extracted text from indexed user documents (capped by Node). */
+  document_context?: string;
 };
 
 export type AgentInvokeResponse = {

@@ -43,8 +43,13 @@ def _embedding_dim() -> int:
     from app.rag.embeddings import get_model
 
     m = get_model()
-    d = getattr(m, "get_sentence_embedding_dimension", lambda: 384)()
-    return int(d) if d else 384
+    gd = getattr(m, "get_embedding_dimension", None)
+    if callable(gd):
+        d = int(gd())
+    else:
+        legacy = getattr(m, "get_sentence_embedding_dimension", None)
+        d = int(legacy()) if callable(legacy) else 384
+    return d if d > 0 else 384
 
 
 _client: QdrantClient | None = None
@@ -65,7 +70,19 @@ def _ensure_collection() -> str:
     client = _get_client()
     col = _collection_name()
     dim = _embedding_dim()
-    names = {c.name for c in client.get_collections().collections}
+    try:
+        names = {c.name for c in client.get_collections().collections}
+    except (ConnectionRefusedError, OSError) as e:
+        errno = getattr(e, "errno", None)
+        msg = str(e).lower()
+        if errno == 111 or "refused" in msg or "connection refused" in msg:
+            u = _qdrant_url()
+            raise RuntimeError(
+                f"Cannot connect to Qdrant at {u}. Start Qdrant (from repo root: "
+                f"`docker compose up -d qdrant`) or unset `QDRANT_URL` in python-agents/.env "
+                f"to use on-disk Chroma for RAG instead."
+            ) from e
+        raise
     if col not in names:
         client.create_collection(
             collection_name=col,
