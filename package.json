@@ -3,6 +3,9 @@
   "private": true,
   "description": "Local MongoDB helpers — backend/frontend stay in their folders",
   "scripts": {
+    "dev": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "start": "npm run start --prefix frontend",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:logs": "docker compose logs -f mongo",
